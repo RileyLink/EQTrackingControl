@@ -1,3 +1,17 @@
+"""Original rotor-command environments with selectable observation reductions.
+
+``equivariant=0`` keeps the full observation; ``1`` keeps the released
+strong-symmetry branch unchanged; ``2`` uses the weak SE_2(3) projection from
+Section IV-A of "Reduction of Tracking Control Problems under Weak Symmetry".
+``3`` corrects the released strong observation to be yaw/translation invariant.
+The selection changes observations and their declared size only.
+
+The released branch retains world velocities and R e3; these features are
+not invariant under joint yaw rotations. They are preserved here so that
+the original baseline can be audited separately from the corrected strong
+and weak projections. Use modes 3 and 2 for the symmetry comparison.
+"""
+
 import jax
 import numpy as np
 import jax.numpy as jnp
@@ -11,6 +25,38 @@ from functools import partial
 from gymnax.environments import spaces
 
 from envs.base_envs import SE2xRQuadState, SE2xRQuadRandomWalkState, SE2xRQuadBase, SE2xRQuadLissajousState
+
+
+def strong_so2_observation(state):
+    """Keep velocities separate while removing common yaw and translation.
+
+    Relative to the released tracking branch, express both world velocities
+    and world vertical in the actual body. Keep its remaining feature order.
+    """
+    return jnp.hstack([
+        state.rotm.T @ (state.ref_pos - state.pos),
+        state.rotm.T @ state.ref_vel, state.rotm.T @ state.vel,
+        (state.rotm.T @ state.ref_rotm).ravel(),
+        state.ref_omega, state.omega, state.ref_action,
+        state.rotm.T @ jnp.array([0., 0., 1.]),
+    ])
+
+
+def weak_se23_observation(state):
+    """Return [omega, E_omega, vec(E_R), E_p, E_R E_nu, u_d].
+
+    The paper uses body velocities nu = R.T @ v, whereas these environments
+    store world velocities v. Thus its projected velocity E_R E_nu is
+    R_d.T @ (v - v_d). The actual angular velocity is retained exactly as in
+    the paper's projection, and u_d is the existing reference rotor command.
+    No derivatives, input scaling, or changes to rotor actions are introduced.
+    """
+    rotation_error = state.ref_rotm.T @ state.rotm
+    angular_error = state.omega - rotation_error.T @ state.ref_omega
+    position_error = state.ref_rotm.T @ (state.pos - state.ref_pos)
+    velocity_error = state.ref_rotm.T @ (state.vel - state.ref_vel)
+    return jnp.hstack([state.omega, angular_error, rotation_error.ravel(),
+                       position_error, velocity_error, state.ref_action])
 
 
 class SE2xRQuadPosition(SE2xRQuadBase):
@@ -120,6 +166,10 @@ class SE2xRQuadPosition(SE2xRQuadBase):
         '''
         state = env_state
 
+        if self.equivariant == 2:
+            return weak_se23_observation(state)
+        if self.equivariant == 3:
+            return strong_so2_observation(state)
         if not self.equivariant:
             non_eq_state = jnp.hstack([state.pos, state.vel, jnp.ravel(state.rotm), state.omega, state.ref_pos, state.ref_vel, jnp.ravel(state.ref_rotm), state.ref_omega, state.ref_action])
             return non_eq_state
@@ -172,7 +222,7 @@ class SE2xRQuadPosition(SE2xRQuadBase):
         return SE2xRQuadState
     
     def observation_space(self) -> spaces.Box:
-        n_obs = 31 if self.equivariant else 40 # this ONLY works since this is dependent on a constructor arg but this is bad behavior. 
+        n_obs = 25 if self.equivariant == 2 else (31 if self.equivariant else 40)
         low = jnp.array(n_obs*[-jnp.finfo(jnp.float32).max])
         high = jnp.array(n_obs*[jnp.finfo(jnp.float32).max])
 
@@ -306,6 +356,10 @@ class SE2xRQuadRandomWalk(SE2xRQuadBase):
         '''
         state = env_state
 
+        if self.equivariant == 2:
+            return weak_se23_observation(state)
+        if self.equivariant == 3:
+            return strong_so2_observation(state)
         if not self.equivariant:
             non_eq_state = jnp.hstack([state.pos, state.vel, jnp.ravel(state.rotm), state.omega, state.ref_pos, state.ref_vel, jnp.ravel(state.ref_rotm), state.ref_omega, state.ref_action])
             return non_eq_state
@@ -360,7 +414,7 @@ class SE2xRQuadRandomWalk(SE2xRQuadBase):
         return SE2xRQuadRandomWalkState
     
     def observation_space(self) -> spaces.Box:
-        n_obs = 31 if self.equivariant else 40 # this ONLY works since this is dependent on a constructor arg but this is bad behavior. 
+        n_obs = 25 if self.equivariant == 2 else (31 if self.equivariant else 40)
         low = jnp.array(n_obs*[-jnp.finfo(jnp.float32).max])
         high = jnp.array(n_obs*[jnp.finfo(jnp.float32).max])
 
@@ -541,6 +595,10 @@ class SE2xRQuadLissajous(SE2xRQuadBase):
         '''
         state = env_state
 
+        if self.equivariant == 2:
+            return weak_se23_observation(state)
+        if self.equivariant == 3:
+            return strong_so2_observation(state)
         if not self.equivariant:
             non_eq_state = jnp.hstack([state.pos, state.vel, jnp.ravel(state.rotm), state.omega, state.ref_pos, state.ref_vel, jnp.ravel(state.ref_rotm), state.ref_omega, state.ref_action])
             return non_eq_state
@@ -646,7 +704,7 @@ class SE2xRQuadLissajous(SE2xRQuadBase):
         return SE2xRQuadLissajousState
     
     def observation_space(self) -> spaces.Box:
-        n_obs = 31 if self.equivariant else 40 # this ONLY works since this is dependent on a constructor arg but this is bad behavior. 
+        n_obs = 25 if self.equivariant == 2 else (31 if self.equivariant else 40)
         low = jnp.array(n_obs*[-jnp.finfo(jnp.float32).max])
         high = jnp.array(n_obs*[jnp.finfo(jnp.float32).max])
 
