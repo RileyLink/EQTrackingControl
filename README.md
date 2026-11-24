@@ -31,7 +31,7 @@ python -m pip install -r requirements_ros2.txt
 
 Run these commands from the repository root of the weak-symmetry branch or worktree. The original PPO trainer initializes a new policy for each run.
 
-In the observation tables, $p$ and $v$ are world-frame position and velocity, $R$ maps body coordinates to world coordinates, and $\omega$ is body-frame angular velocity. Subscript $d$ denotes the reference, and $\operatorname{vec}$ flattens a rotation matrix into nine scalar inputs. Features are grouped by quantity; table rows do not specify concatenation order.
+In the observation tables, $p$ and $v$ are world-frame position and velocity, $R$ maps body coordinates to world coordinates, and $\omega$ is body-frame angular velocity. Subscript $d$ denotes the reference, and $\mathrm{vec}$ flattens a rotation matrix into nine scalar inputs. Features are grouped by quantity; table rows do not specify concatenation order.
 
 ### Quadrotor observation modes
 
@@ -41,7 +41,7 @@ This table describes `quadrotor_random_walk` and `quadrotor_random_lissajous`. T
 | --- | --- | --- | --- | --- |
 | Position | $p,\;p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R_d^\top(p-p_d)$ |
 | Velocity | $v,\;v_d$ | $v_d,\;v$ | $R^\top v_d,\;R^\top v$ | $R_d^\top(v-v_d)$ |
-| Attitude | $\operatorname{vec}(R),\;\operatorname{vec}(R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R_d^\top R)$ |
+| Attitude | $\mathrm{vec}(R),\;\mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R_d^\top R)$ |
 | Angular velocity | $\omega,\;\omega_d$ | $\omega_d,\;\omega$ | $\omega_d,\;\omega$ | $\omega,\;E_\omega$ |
 | Reference commands | $u_d$, four scalars | Same | Same | Same |
 | Separate vertical-direction input | Recoverable from full $R$ | $Re_3$ | $R^\top e_3$ | None |
@@ -49,7 +49,7 @@ This table describes `quadrotor_random_walk` and `quadrotor_random_lissajous`. T
 
 Here $E_\omega=\omega-R^\top R_d\omega_d$, $u_d$ contains the four reference rotor commands, and $e_3=(0,0,1)^\top$ is world vertical. Counts are scalar network inputs, including the nine entries of each supplied rotation matrix.
 
-For `quadrotor_position`, the original mode `1` uses $R_d^\top(p_d-p)$ and $\operatorname{vec}(R_d^\top R)$ for its position and attitude entries instead. Its other entries and all four input counts are as above; modes `0`, `2`, and `3` use the same encoders across the three quadrotor tasks.
+For `quadrotor_position`, the original mode `1` uses $R_d^\top(p_d-p)$ and $\mathrm{vec}(R_d^\top R)$ for its position and attitude entries instead. Its other entries and all four input counts are as above; modes `0`, `2`, and `3` use the same encoders across the three quadrotor tasks.
 
 Use modes `2` and `3` for the weak-versus-strong comparison. Mode `1` retains the released world-velocity and $Re_3$ features, which are not exactly yaw invariant. Mode numbers are environment-specific: Astrobee's corrected strong mode is `6`.
 
@@ -77,7 +77,7 @@ This table describes `astrobee_random_walk` and `astrobee_random_lissajous` with
 | --- | --- | --- | --- | --- |
 | Position | $p,\;p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ |
 | Velocity | $v,\;v_d$ | $v,\;v_d$ | $R^\top v,\;R^\top v_d$ | $R^\top(v-v_d)$ |
-| Attitude | $\operatorname{vec}(R),\;\operatorname{vec}(R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R^\top R_d)$ |
+| Attitude | $\mathrm{vec}(R),\;\mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ |
 | Angular velocity | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ |
 | Reference commands | $F_d,\;\tau_d$, six scalars | Same | Same | Same |
 | Separate vertical-direction input | None | None | None | None |
@@ -85,7 +85,7 @@ This table describes `astrobee_random_walk` and `astrobee_random_lissajous` with
 
 The reference force $F_d$ and torque $\tau_d$ each have three components and are supplied as stored by the reference generator. Unlike the quadrotor weak encoder, Astrobee's weak encoder keeps the same pose and angular-rate features as its corrected strong encoder; only the velocity block is replaced. No separate vertical/gravity-direction feature is supplied in any Astrobee mode.
 
-For `astrobee_position`, the full, corrected strong, and weak columns omit the six reference-command scalars, giving **36**, **24**, and **21** inputs. Its original mode `1` instead supplies $[R_d^\top(p-p_d),\;v-v_d,\;\operatorname{vec}(R^\top R_d),\;\omega-\omega_d]$, giving **18** inputs.
+For `astrobee_position`, the full, corrected strong, and weak columns omit the six reference-command scalars, giving **36**, **24**, and **21** inputs. Its original mode `1` instead supplies $[R_d^\top(p-p_d),\;v-v_d,\;\mathrm{vec}(R^\top R_d),\;\omega-\omega_d]$, giving **18** inputs.
 
 The new modes `2` and `6` require `--symmetry_type 2`. In the released mode `1`, settings `0` and `1` instead use the world-frame position error $p_d-p$; settings `2` and `3` use the body-frame position error shown in the tracking table. Mode `6` avoids the legacy action-offset branches under modes `3` and `4`.
 
