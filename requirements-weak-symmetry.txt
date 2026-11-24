@@ -1,0 +1,22 @@
+# CPU profile matching the original-policy training smoke check on Python 3.11.
+# Use the same environment for weak and corrected strong observation modes.
+# The upstream requirements.txt is retained separately.
+chex==0.1.90
+decorator==5.1.1
+distrax==0.1.5
+dm-tree==0.1.8
+flax==0.8.4
+gast==0.6.0
+gym==0.26.2
+gymnasium==0.29.1
+gymnax==0.0.8
+jax==0.4.30
+jaxlib==0.4.30
+matplotlib==3.9.2
+numpy==1.26.4
+optax==0.2.3
+orbax-checkpoint==0.6.4
+scipy==1.14.1
+seaborn==0.13.2
+six==1.16.0
+tensorflow-probability==0.24.0
