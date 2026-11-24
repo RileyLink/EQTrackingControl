@@ -39,10 +39,10 @@ This table describes `quadrotor_random_walk` and `quadrotor_random_lissajous`. T
 
 | Quantity | Full: `0` | Original reduced: `1` | Corrected strong: `3` | Weak: `2` |
 | --- | --- | --- | --- | --- |
-| Position | $p,\;p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R_d^\top(p-p_d)$ |
-| Velocity | $v,\;v_d$ | $v_d,\;v$ | $R^\top v_d,\;R^\top v$ | $R_d^\top(v-v_d)$ |
-| Attitude | $\mathrm{vec}(R),\;\mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R_d^\top R)$ |
-| Angular velocity | $\omega,\;\omega_d$ | $\omega_d,\;\omega$ | $\omega_d,\;\omega$ | $\omega,\;E_\omega$ |
+| Position | $p, p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R_d^\top(p-p_d)$ |
+| Velocity | $v, v_d$ | $v_d, v$ | $R^\top v_d, R^\top v$ | $R_d^\top(v-v_d)$ |
+| Attitude | $\mathrm{vec}(R), \mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R_d^\top R)$ |
+| Angular velocity | $\omega, \omega_d$ | $\omega_d, \omega$ | $\omega_d, \omega$ | $\omega, E_\omega$ |
 | Reference commands | $u_d$, four scalars | Same | Same | Same |
 | Separate vertical-direction input | Recoverable from full $R$ | $Re_3$ | $R^\top e_3$ | None |
 | **Total inputs** | **40** | **31** | **31** | **25** |
@@ -75,17 +75,17 @@ This table describes `astrobee_random_walk` and `astrobee_random_lissajous` with
 
 | Quantity | Full: `0` | Original reduced: `1` | Corrected strong: `6` | Weak: `2` |
 | --- | --- | --- | --- | --- |
-| Position | $p,\;p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ |
-| Velocity | $v,\;v_d$ | $v,\;v_d$ | $R^\top v,\;R^\top v_d$ | $R^\top(v-v_d)$ |
-| Attitude | $\mathrm{vec}(R),\;\mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ |
-| Angular velocity | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ |
-| Reference commands | $F_d,\;\tau_d$, six scalars | Same | Same | Same |
+| Position | $p, p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ |
+| Velocity | $v, v_d$ | $v, v_d$ | $R^\top v, R^\top v_d$ | $R^\top(v-v_d)$ |
+| Attitude | $\mathrm{vec}(R), \mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ |
+| Angular velocity | $\omega, \omega_d$ | $\omega, \omega_d$ | $\omega, \omega_d$ | $\omega, \omega_d$ |
+| Reference commands | $F_d, \tau_d$, six scalars | Same | Same | Same |
 | Separate vertical-direction input | None | None | None | None |
 | **Total inputs** | **42** | **30** | **30** | **27** |
 
 The reference force $F_d$ and torque $\tau_d$ each have three components and are supplied as stored by the reference generator. Unlike the quadrotor weak encoder, Astrobee's weak encoder keeps the same pose and angular-rate features as its corrected strong encoder; only the velocity block is replaced. No separate vertical/gravity-direction feature is supplied in any Astrobee mode.
 
-For `astrobee_position`, the full, corrected strong, and weak columns omit the six reference-command scalars, giving **36**, **24**, and **21** inputs. Its original mode `1` instead supplies $[R_d^\top(p-p_d),\;v-v_d,\;\mathrm{vec}(R^\top R_d),\;\omega-\omega_d]$, giving **18** inputs.
+For `astrobee_position`, the full, corrected strong, and weak columns omit the six reference-command scalars, giving **36**, **24**, and **21** inputs. Its original mode `1` instead supplies $[R_d^\top(p-p_d), v-v_d, \mathrm{vec}(R^\top R_d), \omega-\omega_d]$, giving **18** inputs.
 
 The new modes `2` and `6` require `--symmetry_type 2`. In the released mode `1`, settings `0` and `1` instead use the world-frame position error $p_d-p$; settings `2` and `3` use the body-frame position error shown in the tracking table. Mode `6` avoids the legacy action-offset branches under modes `3` and `4`.
 
