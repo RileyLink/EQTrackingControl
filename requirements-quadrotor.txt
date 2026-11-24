@@ -1,0 +1,8 @@
+# Standalone four-policy experiment; preserves the legacy dependency stack.
+jax==0.4.30
+jaxlib==0.4.30
+flax==0.8.4
+optax==0.2.3
+numpy==1.26.4
+scipy==1.14.1
+matplotlib==3.9.2

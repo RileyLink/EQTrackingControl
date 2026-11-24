@@ -2,6 +2,23 @@
   <b>EQ Tracking Control: Symmetry-Aware Trajectory Tracking Controllers with RL</b><br>
 </h1>
 
+The additional [quadrotor policy comparison](experiments/QUADROTOR_COMPARISON.md)
+compares full/invariant observations with/without desired derivatives through
+snap and yaw acceleration, using shared smooth flatness-consistent references.
+It adds full/invariant policies with causal model-derived actual derivatives,
+training-reward-only plots, optional later evaluation, and a CPU-compatible setup.
+It also compares thrust-rate inputs with a first-order dynamic thrust extension,
+and full/invariant policies with a second-order thrust extension: thrust and thrust
+rate are states, and actions are thrust acceleration and body torque. New runs can
+be overlaid on saved reward histories without retraining old policies.
+Cases K/L extend only the desired reference with F/Fdot/Fddot information while
+the actual controller outputs collective thrust and body torque directly. They
+compare full and invariant observations. Plot legends include observation and
+action dimensions, and reports save a matching dimension table.
+The optional `position_focus_v1` reward experiment retrains only A/B/K/L with
+stronger position/velocity penalties and compares physical tracking accuracy
+against the original saved runs.
+
 <p align="center">
  <img src="https://img.shields.io/badge/python-3.10-blue" />
 </p>
