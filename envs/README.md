@@ -41,6 +41,26 @@ Available environments:
 - Random walking inputs: `astrobee_random_walk`
 - Random Lissajous tracking: `astrobee_random_lissajous`
 
+The observation modes on this branch are:
+
+| `equivariant` | Observation | Position inputs | Tracking inputs |
+| --- | --- | --- | --- |
+| `0` | Original full observation | 36 | 42 |
+| `1` | Original reduced observation, unchanged | 18 | 30 |
+| `2` | Weak SE_2(3), using body-frame relative velocity | 21 | 27 |
+| `6` | Corrected strong SE(3), keeping body-frame velocities separate | 24 | 30 |
+
+New modes `2` and `6` require `symmetry_type=2`, the body-force/direct-product setting. Modes `3` and `4` retain their legacy reference-action offset code and are not used for the new observation comparison.
+
+The common features in the new modes are `R.T @ (p_d - p)`,
+`vec(R.T @ R_d)`, `omega`, and `omega_d`. Tracking tasks append the stored
+reference force and torque. Strong supplies `R.T @ v` and `R.T @ v_d`
+separately; weak substitutes `R.T @ (v - v_d)`. The other features have
+identical values in both modes. Neither mode changes action decoding,
+dynamics, reward, reset distribution, or reference generation. The position
+task omits the reference-wrench channels because they are absent from its
+state. See the [Astrobee training commands](../rl/README.md#astrobee-training).
+
 ## Quadrotor Environments
 These environments correspond to an underactuated quadrotor. 
 

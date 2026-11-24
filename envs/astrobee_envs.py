@@ -1,3 +1,12 @@
+"""Original Astrobee environments with additional body-wrench observations.
+
+Modes 0 and 1 retain the released observations. With symmetry_type=2,
+mode 6 supplies corrected strong SE(3) features and mode 2 supplies weak
+SE_2(3) features. The new observations differ only in whether the two
+body-frame velocities are kept separately or replaced by their error.
+Mode 6 avoids the legacy action-offset branches reserved for modes 3/4.
+"""
+
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
@@ -11,9 +20,50 @@ from gymnax.environments import spaces
 
 from envs.base_envs import SE3FAQuadState, SE3FAQuadRandomWalkState, SE3QuadFullyActuatedBase, SE3FAQuadLissajousTrackingState
 
+
+def _validate_reduced_body_wrench_mode(env):
+    if env.equivariant in (2, 6) and env.symmetry_type != 2:
+        raise ValueError(
+            "Astrobee observation modes 2 (weak) and 6 (strong) require "
+            "symmetry_type=2: body-frame forces and the direct-product tracking cost"
+        )
+
+
+def _body_wrench_observation(state, *, velocity_error, include_reference_wrench):
+    position = state.rotm.T @ (state.ref_pos - state.pos)
+    velocity = (state.rotm.T @ (state.vel - state.ref_vel) if velocity_error else
+                jnp.hstack([state.rotm.T @ state.vel, state.rotm.T @ state.ref_vel]))
+    features = [position, velocity, (state.rotm.T @ state.ref_rotm).ravel(),
+                state.omega, state.ref_omega]
+    if include_reference_wrench:
+        features.extend([state.ref_F, state.ref_tau])
+    return jnp.hstack(features)
+
+
+def strong_se3_observation(state, *, include_reference_wrench=True):
+    """[R.T(p_d-p), R.T v, R.T v_d, vec(R.T R_d), omega, omega_d, F_d, tau_d]."""
+    return _body_wrench_observation(
+        state, velocity_error=False, include_reference_wrench=include_reference_wrench,
+    )
+
+
+def weak_se23_observation(state, *, include_reference_wrench=True):
+    """Replace the two strong-mode velocities by R.T(v-v_d).
+
+    Position and attitude use the actual-body convention in X^{-1} X_d.
+    The velocity error is the negative of that extended pose's velocity
+    column. Both body angular rates remain as context. The position-only
+    task omits the reference wrench, which is absent from its state.
+    """
+    return _body_wrench_observation(
+        state, velocity_error=True, include_reference_wrench=include_reference_wrench,
+    )
+
+
 class SE3QuadFullyActuatedPosition(SE3QuadFullyActuatedBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        _validate_reduced_body_wrench_mode(self)
 
         # Choose kt such that CoM acc values are \in [-1, 1]
         self.m = 1.0
@@ -109,6 +159,10 @@ class SE3QuadFullyActuatedPosition(SE3QuadFullyActuatedBase):
         '''
         state = env_state
 
+        if self.equivariant == 2:
+            return weak_se23_observation(state, include_reference_wrench=False)
+        if self.equivariant == 6:
+            return strong_se3_observation(state, include_reference_wrench=False)
         if not self.equivariant:
             non_eq_state = jnp.hstack([state.pos, state.vel, jnp.ravel(state.rotm), state.omega, state.ref_pos, state.ref_vel, jnp.ravel(state.ref_rotm), state.ref_omega])
             return non_eq_state
@@ -156,7 +210,8 @@ class SE3QuadFullyActuatedPosition(SE3QuadFullyActuatedBase):
         return SE3FAQuadState
     
     def observation_space(self) -> spaces.Box:
-        n_obs = 18 if self.equivariant else 36 # this ONLY works since this is dependent on a constructor arg but this is bad behavior. 
+        n_obs = (21 if self.equivariant == 2 else 24 if self.equivariant == 6
+                 else 18 if self.equivariant else 36)
         low = jnp.array(n_obs*[-jnp.finfo(jnp.float32).max])
         high = jnp.array(n_obs*[jnp.finfo(jnp.float32).max])
 
@@ -166,6 +221,7 @@ class SE3QuadFullyActuatedPosition(SE3QuadFullyActuatedBase):
 class SE3QuadFullyActuatedRandomWalk(SE3QuadFullyActuatedBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        _validate_reduced_body_wrench_mode(self)
 
         # Choose kt such that CoM acc values are \in [-1, 1]
         self.m = 0.5
@@ -292,6 +348,10 @@ class SE3QuadFullyActuatedRandomWalk(SE3QuadFullyActuatedBase):
         '''
         state = env_state
 
+        if self.equivariant == 2:
+            return weak_se23_observation(state)
+        if self.equivariant == 6:
+            return strong_se3_observation(state)
         if self.equivariant == 0:
             non_eq_state = jnp.hstack([state.pos, state.vel, jnp.ravel(state.rotm), state.omega, state.ref_pos, state.ref_vel, jnp.ravel(state.ref_rotm), state.ref_omega, state.ref_F, state.ref_tau])
             return non_eq_state
@@ -388,6 +448,7 @@ def lissajous_omega(t, amplitudes, frequencies, phases):
 class SE3QuadFullyActuatedLissajous(SE3QuadFullyActuatedBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        _validate_reduced_body_wrench_mode(self)
 
         # Choose kt such that CoM acc values are \in [-1, 1]
         self.m = 0.5
@@ -531,6 +592,10 @@ class SE3QuadFullyActuatedLissajous(SE3QuadFullyActuatedBase):
         '''
         state = env_state
 
+        if self.equivariant == 2:
+            return weak_se23_observation(state)
+        if self.equivariant == 6:
+            return strong_se3_observation(state)
         if self.equivariant == 0:
             non_eq_state = jnp.hstack([state.pos, state.vel, jnp.ravel(state.rotm), state.omega, state.ref_pos, state.ref_vel, jnp.ravel(state.ref_rotm), state.ref_omega, state.ref_F, state.ref_tau])
             return non_eq_state

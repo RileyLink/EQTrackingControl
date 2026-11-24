@@ -241,6 +241,9 @@ def parse_args(config):
     parser.add_argument("--equivariant", type=int, default=0, dest="EQUIVARIANT",
                         help="Quadrotor observations: 0 - full; 1 - released strong branch; "
                              "2 - weak SE_2(3) tracking errors; 3 - corrected strong SO(2) with translations. "
+                             "Astrobee observations: 0 - full; 1 - released branch; "
+                             "2 - weak SE_2(3); 6 - corrected strong SE(3). "
+                             "Astrobee modes 2/6 require --symmetry_type 2. "
                              "Particle observations: 0 - full; "
                              "1 - position error; 2 - velocity error; 3 - position and velocity errors; "
                              "4 - position, velocity and acceleration errors.")

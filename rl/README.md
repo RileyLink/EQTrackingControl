@@ -68,6 +68,40 @@ The training command initializes weights from scratch. It has no `--load-path` o
 
 For SLURM, place the weak training command in your job script and set its working directory to the repository root. The bundled `rl/slurm_run_exps.sh` contains the original quadrotor mode `0` and `1` presets.
 
+### Astrobee training
+
+On this branch, the corrected strong Astrobee mode is `--equivariant 6` and the weak mode is `--equivariant 2`. Both require `--symmetry_type 2`: the body-frame force model with the direct-product tracking cost. Other symmetry settings retain their original observation modes `0` and `1`; the new encoders reject them rather than silently pairing body-frame features with a different force/cost convention.
+
+```bash
+python -m rl.train_policy --env-name astrobee_random_walk --symmetry_type 2 --equivariant 6 --exp-name astrobee_strong_seed0 --seed 0 --num-seeds 1 --total-timesteps 10000000
+python -m rl.train_policy --env-name astrobee_random_walk --symmetry_type 2 --equivariant 2 --exp-name astrobee_weak_seed0 --seed 0 --num-seeds 1 --total-timesteps 10000000
+```
+
+For the tracking environments, the new observations are:
+
+| Feature | Strong mode `6` | Weak mode `2` |
+| --- | --- | --- |
+| Position | `R.T @ (p_d - p)` | Same |
+| Velocity | `R.T @ v`, `R.T @ v_d` | `R.T @ (v - v_d)` |
+| Attitude | `vec(R.T @ R_d)` | Same |
+| Angular context | `omega`, `omega_d` | Same |
+| Reference wrench | Stored `F_d`, `tau_d` | Same |
+| Input scalars | 30 | 27 |
+
+Weak replaces the two velocities with their error; it does not append an error while retaining the separate velocities. The actual-body pose convention and angular-rate context differ from the quadrotor weak vector's ordering, but still give SE_2(3)-invariant tracking coordinates. No thrust derivatives are added.
+
+Both modes produce the original six direct force/torque commands, clipped to `[-1, 1]`. Strong uses mode `6` because the legacy modes `3` and `4` contain reference-action offsets; selecting the new modes introduces no such offset. The original dynamics, reward, reset distribution, reference generators, and PPO update are unchanged. The symmetry checks concern the observation maps and equality of the original task under identical state/action inputs.
+
+These modes also work for `astrobee_random_lissajous` and `astrobee_position`. The position task has no stored reference-wrench channels: its strong/weak input sizes are 24/21, while its original modes retain sizes 36/18. Its new encoders keep both angular rates as context, even when the desired rate is zero. For a quick installation check, use the quadrotor smoke command above with `--env-name astrobee_random_walk --symmetry_type 2` and the appropriate `--equivariant 6` or `2` setting and a distinct experiment name.
+
+For checkpoint evaluation, use:
+
+```bash
+python -m rl.eval_policy --env-name astrobee_random_walk --load-path ./checkpoints/astrobee_weak_seed0/model_final --num-envs 1
+```
+
+The saved configuration supplies both `EQUIVARIANT` and `SYMMETRY_TYPE` when the evaluator reconstructs the environment. Use the strong checkpoint folder to evaluate the corresponding strong policy.
+
 ### Saved Data
 By default, a new directory will be created at `./checkpoints/{exp-name}` and this is where the resulting data generated during training will be saved. This includes the configuration dictionary made from the default parameters and CLI args (`config.txt`), training curves (`training_data.npz`), the final model weights (`/model_final/`) and some figures (`episode_returns_shaded.png`, and `terminal_timesteps_summary.png`). By default, if an experiment name already exists in the `./checkpoints/` directory, a numerical index will be appended and incremented to the experiment name. 
 

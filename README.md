@@ -8,7 +8,7 @@
 
 This repository contains code for the environment and RL training implementations of the paper, [Leveraging Symmetry to Accelerate Learning of Trajectory Tracking Controllers for Free-Flying Robotic Systems](https://arxiv.org/abs/2409.11238). All environments are written in Jax, with wrappers available for the standard Gymnasium interface. A custom PPO implementation, also written in Jax, is provided. Training takes approximately 4 mins for 10M env steps, running on an Nvidia RTX A5000. 
 
-The `codex/quadrotor-weak-symmetry` branch adds weak SE_2(3) observation reduction to the original quadrotor environments and PPO. Select `--equivariant 2` to train with relative tracking errors and their retained context. The fork's `main` branch preserves the upstream code; the thrust-derivative experiments are on `codex/quadrotor-thrust-experiments`.
+The `codex/quadrotor-weak-symmetry` branch adds corrected strong and weak observation reductions to the original quadrotor and Astrobee environments and PPO. The fork's `main` branch preserves the upstream code; the thrust-derivative experiments are on `codex/quadrotor-thrust-experiments`.
 
 ## Installation
 
@@ -57,6 +57,17 @@ python -m rl.train_policy --env-name quadrotor_random_walk --equivariant 3 --exp
 Both commands use the original default network (three hidden layers of 64 units), PPO settings, rotor actions, rewards, and reset distribution. The network input dimension follows the selected observation. Random-walk references are generated internally, so these commands need no external trajectory files. The requested timestep budget is rounded down to complete rollout batches; these examples specify a starting budget, not a convergence result.
 
 The trainer requires `--exp-name`. Training starts from scratch; `--load-path` is an evaluation argument. For a tiny installation and checkpoint-saving check, matched larger-network options, evaluation instructions, and the Lissajous prerequisites, see [the training guide](rl/README.md#quadrotor-training).
+
+### Train strong and weak Astrobee policies
+
+Astrobee's new modes use `--symmetry_type 2`, which selects body-frame force commands and the original direct-product tracking cost. Mode `6` is corrected strong SE(3); mode `2` is weak SE_2(3). Mode `6` avoids the legacy action-offset branches under modes `3` and `4`.
+
+```bash
+python -m rl.train_policy --env-name astrobee_random_walk --symmetry_type 2 --equivariant 6 --exp-name astrobee_strong_seed0 --seed 0 --num-seeds 1 --total-timesteps 10000000
+python -m rl.train_policy --env-name astrobee_random_walk --symmetry_type 2 --equivariant 2 --exp-name astrobee_weak_seed0 --seed 0 --num-seeds 1 --total-timesteps 10000000
+```
+
+Strong receives `R.T @ v` and `R.T @ v_d` separately (30 tracking inputs). Weak replaces those six scalars with `R.T @ (v - v_d)` (27 inputs). Position, relative attitude, both body angular rates, and the stored reference force/torque channels are identical between the new modes. Their six direct force/torque outputs, dynamics, rewards, resets, reference generators, and PPO implementation are shared. See [the Astrobee training guide](rl/README.md#astrobee-training).
 
 ## Example Results
 <img src="./figures/example_results.png" alt="main_results" width="800"/>
