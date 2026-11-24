@@ -31,16 +31,27 @@ python -m pip install -r requirements_ros2.txt
 
 Run these commands from the repository root of the weak-symmetry branch or worktree. The original PPO trainer initializes a new policy for each run.
 
+In the observation tables, $p$ and $v$ are world-frame position and velocity, $R$ maps body coordinates to world coordinates, and $\omega$ is body-frame angular velocity. Subscript $d$ denotes the reference, and $\operatorname{vec}$ flattens a rotation matrix into nine scalar inputs. Features are grouped by quantity; table rows do not specify concatenation order.
+
 ### Quadrotor observation modes
 
-| `--equivariant` | Observation | Input scalars |
-| --- | --- | --- |
-| `0` | Full actual and reference states | 40 |
-| `1` | Released observation branch, preserved for reproducing the upstream code | 31 |
-| `2` | Weak SE_2(3) reduction: relative errors, actual angular velocity, reference rotor commands | 25 |
-| `3` | Corrected strong SO(2) with translations: separate body-frame velocities and gravity direction | 31 |
+This table describes `quadrotor_random_walk` and `quadrotor_random_lissajous`. The numbers in the column headings are the `--equivariant` settings.
 
-Use modes `2` and `3` for the weak-versus-strong comparison. Mode `1` retains the released world-velocity and `R e3` features, which are not exactly yaw invariant. These mode meanings are specific to quadrotors; particle and Astrobee modes retain their original meanings.
+| Quantity | Full: `0` | Original reduced: `1` | Corrected strong: `3` | Weak: `2` |
+| --- | --- | --- | --- | --- |
+| Position | $p,\;p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R_d^\top(p-p_d)$ |
+| Velocity | $v,\;v_d$ | $v_d,\;v$ | $R^\top v_d,\;R^\top v$ | $R_d^\top(v-v_d)$ |
+| Attitude | $\operatorname{vec}(R),\;\operatorname{vec}(R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R_d^\top R)$ |
+| Angular velocity | $\omega,\;\omega_d$ | $\omega_d,\;\omega$ | $\omega_d,\;\omega$ | $\omega,\;E_\omega$ |
+| Reference commands | $u_d$, four scalars | Same | Same | Same |
+| Separate vertical-direction input | Recoverable from full $R$ | $Re_3$ | $R^\top e_3$ | None |
+| **Total inputs** | **40** | **31** | **31** | **25** |
+
+Here $E_\omega=\omega-R^\top R_d\omega_d$, $u_d$ contains the four reference rotor commands, and $e_3=(0,0,1)^\top$ is world vertical. Counts are scalar network inputs, including the nine entries of each supplied rotation matrix.
+
+For `quadrotor_position`, the original mode `1` uses $R_d^\top(p_d-p)$ and $\operatorname{vec}(R_d^\top R)$ for its position and attitude entries instead. Its other entries and all four input counts are as above; modes `0`, `2`, and `3` use the same encoders across the three quadrotor tasks.
+
+Use modes `2` and `3` for the weak-versus-strong comparison. Mode `1` retains the released world-velocity and $Re_3$ features, which are not exactly yaw invariant. Mode numbers are environment-specific: Astrobee's corrected strong mode is `6`.
 
 ### Train a weak-invariant quadrotor policy
 
@@ -58,16 +69,34 @@ Both commands use the original default network (three hidden layers of 64 units)
 
 The trainer requires `--exp-name`. Training starts from scratch; `--load-path` is an evaluation argument. For a tiny installation and checkpoint-saving check, matched larger-network options, evaluation instructions, and the Lissajous prerequisites, see [the training guide](rl/README.md#quadrotor-training).
 
-### Train strong and weak Astrobee policies
+### Astrobee observation modes
 
-Astrobee's new modes use `--symmetry_type 2`, which selects body-frame force commands and the original direct-product tracking cost. Mode `6` is corrected strong SE(3); mode `2` is weak SE_2(3). Mode `6` avoids the legacy action-offset branches under modes `3` and `4`.
+This table describes `astrobee_random_walk` and `astrobee_random_lissajous` with `--symmetry_type 2`, which selects body-frame force commands and the original direct-product tracking cost. Mode `6` is corrected strong SE(3); mode `2` is weak SE_2(3).
+
+| Quantity | Full: `0` | Original reduced: `1` | Corrected strong: `6` | Weak: `2` |
+| --- | --- | --- | --- | --- |
+| Position | $p,\;p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ |
+| Velocity | $v,\;v_d$ | $v,\;v_d$ | $R^\top v,\;R^\top v_d$ | $R^\top(v-v_d)$ |
+| Attitude | $\operatorname{vec}(R),\;\operatorname{vec}(R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R^\top R_d)$ | $\operatorname{vec}(R^\top R_d)$ |
+| Angular velocity | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ | $\omega,\;\omega_d$ |
+| Reference commands | $F_d,\;\tau_d$, six scalars | Same | Same | Same |
+| Separate vertical-direction input | None | None | None | None |
+| **Total inputs** | **42** | **30** | **30** | **27** |
+
+The reference force $F_d$ and torque $\tau_d$ each have three components and are supplied as stored by the reference generator. Unlike the quadrotor weak encoder, Astrobee's weak encoder keeps the same pose and angular-rate features as its corrected strong encoder; only the velocity block is replaced. No separate vertical/gravity-direction feature is supplied in any Astrobee mode.
+
+For `astrobee_position`, the full, corrected strong, and weak columns omit the six reference-command scalars, giving **36**, **24**, and **21** inputs. Its original mode `1` instead supplies $[R_d^\top(p-p_d),\;v-v_d,\;\operatorname{vec}(R^\top R_d),\;\omega-\omega_d]$, giving **18** inputs.
+
+The new modes `2` and `6` require `--symmetry_type 2`. In the released mode `1`, settings `0` and `1` instead use the world-frame position error $p_d-p$; settings `2` and `3` use the body-frame position error shown in the tracking table. Mode `6` avoids the legacy action-offset branches under modes `3` and `4`.
+
+### Train strong and weak Astrobee policies
 
 ```bash
 python -m rl.train_policy --env-name astrobee_random_walk --symmetry_type 2 --equivariant 6 --exp-name astrobee_strong_seed0 --seed 0 --num-seeds 1 --total-timesteps 10000000
 python -m rl.train_policy --env-name astrobee_random_walk --symmetry_type 2 --equivariant 2 --exp-name astrobee_weak_seed0 --seed 0 --num-seeds 1 --total-timesteps 10000000
 ```
 
-Strong receives `R.T @ v` and `R.T @ v_d` separately (30 tracking inputs). Weak replaces those six scalars with `R.T @ (v - v_d)` (27 inputs). Position, relative attitude, both body angular rates, and the stored reference force/torque channels are identical between the new modes. Their six direct force/torque outputs, dynamics, rewards, resets, reference generators, and PPO implementation are shared. See [the Astrobee training guide](rl/README.md#astrobee-training).
+The paired commands share their six direct force/torque outputs, dynamics, rewards, resets, reference generators, and PPO implementation. See [the Astrobee training guide](rl/README.md#astrobee-training).
 
 ## Example Results
 <img src="./figures/example_results.png" alt="main_results" width="800"/>
@@ -77,7 +106,7 @@ Strong receives `R.T @ v` and `R.T @ v_d` separately (30 tracking inputs). Weak 
 ## Checkpoints
 Pretrained models are provided within the `checkpoints` directory, for all systems. These models match the performance reported in the paper, and the individual hyperparameters used for each experiment are contained wihtin the `config.txt` file of the individual experiments. 
 
-These are the upstream checkpoints. Train a new 25-input policy using the weak-symmetry command above; changing an evaluation flag does not change a checkpoint's input dimension.
+These are the upstream checkpoints. Train a new weak policy using the appropriate command above; changing an evaluation flag does not change a checkpoint's input dimension.
 
 ## Citation
 If you use this repository or paper please cite the following:
