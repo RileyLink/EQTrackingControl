@@ -100,6 +100,12 @@ python -m rl.train_policy --env-name astrobee_random_walk --symmetry_type 2 --eq
 
 The paired commands share their six direct force/torque outputs, dynamics, rewards, resets, reference generators, and PPO implementation. See [the Astrobee training guide](rl/README.md#astrobee-training).
 
+### Export rollouts for ROS/RViz
+
+`python -m rl.eval_vis --env quadrotor` exports the full, original strong, corrected strong, and weak checkpoints on one shared Lissajous reference. Each checkpoint must have been trained for its observation mode. Add `--reference random_walk` to use an internally generated reference instead of the external quadrotor trajectory bank, or use `--env astrobee` for Astrobee.
+
+The exporter saves every mode separately and supplies a selected pair to the existing two-policy ROS player with `--rviz-pair corrected_strong weak`. Checkpoint locations, required files, metrics, and commands are documented in [the rollout export guide](rl/README.md#ros-rollout-export-eval_vispy); ROS playback is described [here](ros2_ws/src/trajectory_visualization/README.md).
+
 ## Example Results
 <img src="./figures/example_results.png" alt="main_results" width="800"/>
 

@@ -121,3 +121,59 @@ python -m rl.eval_policy --env-name quadrotor_random_walk --load-path ./checkpoi
 For the strong policy, use `./checkpoints/quadrotor_strong_seed0/model_final`. If the trainer appended a numeric suffix to an existing experiment name, use that actual checkpoint folder. The evaluator reads `EQUIVARIANT` from the saved configuration, overriding its command-line observation-mode argument.
 
 The current evaluator uses a fixed 5,000-step rollout and writes `eval_data.pkl` and per-environment plots beside the checkpoint. Its `--num-timesteps` option does not currently change that fixed rollout length. The examples use the default `hard_tanh` output activation: the legacy evaluator does not restore a different `OUT_ACTIVATION` from the configuration, so evaluation of models trained with other output activations needs a separate evaluator correction.
+
+## ROS rollout export (`eval_vis.py`)
+
+Run `python -m rl.eval_vis --help` from the repository root. This exporter restores trained policies, applies their deterministic mean actions, and records trajectories for ROS playback. It does not train or convert policies. Mode names identify independently trained checkpoints:
+
+| Export label | Quadrotor `EQUIVARIANT` | Astrobee `EQUIVARIANT` | Default checkpoint folder |
+| --- | --- | --- | --- |
+| `full` | `0` | `0` | `checkpoints/<robot>_baseline` |
+| `strong` | `1`, original released reduction | `1`, original released reduction | `checkpoints/<robot>_equivariant` |
+| `corrected_strong` | `3` | `6` | `checkpoints/<robot>_strong_seed0` |
+| `weak` | `2` | `2` | `checkpoints/<robot>_weak_seed0` |
+
+For a new matched comparison, train modes `0` and `1` with the same PPO options as the strong/weak training commands above, using separate experiment names such as `<robot>_full_seed0` and `<robot>_original_strong_seed0`. All four Astrobee checkpoints must use `--symmetry_type 2` to compare the same body-force dynamics. The exporter verifies each saved mode and network input shape and restores the saved hidden/output activations and selected training-seed index. Changing an evaluation label cannot turn a strong checkpoint into a weak policy.
+
+For example, export four newly trained quadrotor checkpoints:
+
+```bash
+python -m rl.eval_vis --env quadrotor --reference random_walk \
+  --checkpoint full=checkpoints/quadrotor_full_seed0 \
+  --checkpoint strong=checkpoints/quadrotor_original_strong_seed0 \
+  --checkpoint corrected_strong=checkpoints/quadrotor_strong_seed0 \
+  --checkpoint weak=checkpoints/quadrotor_weak_seed0 \
+  --rviz-pair corrected_strong weak --seed 0 --train-seed 0 --num-timesteps 2000
+```
+
+For Astrobee, replace `quadrotor` with `astrobee` in that command and its checkpoint paths. A checkpoint path can name the experiment directory or its `model_final` subdirectory. Repeated `--checkpoint` options select exactly those modes; omit them to request all four default folders. `--rviz-pair` selects two requested modes for playback, defaulting to the first and last requested modes. A single checkpoint can also be exported, without updating the pair files.
+
+The four trained checkpoints must exist before running the comparison. A folder containing only Orbax metadata is insufficient: the checkpoint's data files must also be present. Some bundled quadrotor configurations name `clipped_relu`, but the released `ActorCritic` calls `flax.linen.clipped_relu`, which is absent in the pinned Flax version. Those checkpoints require their original activation implementation; this exporter reports the incompatibility instead of substituting `hard_tanh`. New policies trained with the supported default `hard_tanh` do not have that issue. Earlier weak-mode checkpoints also require their original encoder or retraining after the error-convention change.
+
+Evaluation uses one common initial physical state and one precomputed reference for all policies. The first requested checkpoint supplies the common environment settings, including reset covariance and termination bound; each policy supplies its own mode and network weights. Automatic error/time resets are disabled during export so a drifting policy does not restart on a different reference. Bound violations are recorded instead. The shared reference is generated with the robot's state matched to its reference state, then replayed: this also prevents the released Astrobee random-walk generator's dependence on actual angular velocity from creating a different task for each policy. Training environments and PPO are unchanged.
+
+Reference options:
+
+- `--reference lissajous` is the default, preserving the original exporter task. Quadrotor requires `ref_state_list.npy` of shape `(N, T, 18)` and `ref_u_list.npy` of shape `(N, T, 4)` in the working directory. `--trajectory-index 0` selects one shared trajectory; `--num-timesteps` must not exceed its length. Astrobee and particle Lissajous references are generated internally.
+- `--reference random_walk` needs no trajectory-bank files for quadrotor or Astrobee.
+- `--reference position` uses the position task. Astrobee position observations have different input dimensions, so use checkpoints trained with those dimensions.
+
+The default 2,000 steps correspond to 100 simulated seconds at `dt=0.05`. Arrays contain post-step samples starting at `t=dt`; `--seed` controls initialization/reference generation and `--train-seed` selects a policy within a saved seed batch. If any policy becomes nonfinite, all outputs are truncated to the same finite prefix and the failure step is recorded.
+
+Files are written under `ros2_ws/src/trajectory_visualization/trajectory_visualization/data/<robot>/`, or `--output-dir PATH`:
+
+| Files | Contents |
+| --- | --- |
+| `<mode>_pos.npy`, `<mode>_quat.npy` | Each policy's world positions `(T, 3)` and quaternion orientations `(T, 4)`, ordered `x, y, z, w` |
+| `ref_pos.npy`, `ref_quat.npy` | The shared reference |
+| `<mode>_rollout.npz` | Positions, velocities, rotation matrices, angular rates, shared reference channels, mean policy actions before environment clipping, sample times, and bound-violation flags |
+| `baseline_pos.npy`, `baseline_quat.npy` | First mode selected by `--rviz-pair` |
+| `equivariant_pos.npy`, `equivariant_quat.npy` | Second mode selected by `--rviz-pair` |
+| `metrics.csv` | Tracking-error summary for every exported mode |
+| `manifest.json` | Checkpoints/configurations, seeds, timestep, pair labels, numerical-failure steps, and metrics |
+
+Position RMSE is `sqrt(mean(||p - p_d||^2))` in metres; maximum distance is the largest Euclidean position error. Velocity RMSE uses `v - v_d` in metres/second. Attitude RMSE uses the angle of `R_d.T @ R` in degrees. `first_bound_violation_step` is a one-based post-step index, with a blank CSV cell if no violation occurred. Metrics use the same exported horizon for all policies.
+
+Exports replace files with the same names in the selected output folder. Quaternions are saved as `*_quat.npy`, matching the ROS reader; the old exporter incorrectly used `*_rotm.npy` for these quaternion arrays. The ROS player still shows two policies at a time; rerun with a different `--rviz-pair` to select another comparison. See [ROS playback commands](../ros2_ws/src/trajectory_visualization/README.md).
+
+The original particle comparison remains available with `--env particle`, using full mode `0` and its original position/velocity/action reduction `3`. Its player additionally receives `anim_ref.npy`, `anim_baseline.npy`, and `anim_eq.npy`.

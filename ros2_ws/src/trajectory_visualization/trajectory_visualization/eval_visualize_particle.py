@@ -86,7 +86,7 @@ class MinimalPublisher(Node):
         self.get_logger().info('Time t=%f' % self.time)
         self.time += 1.0 / self.frame_rate
         self.index += 1
-        if self.index >= 2000:
+        if self.index >= len(self.ref_pos):
             self.index = 0
 
         # TODO: replace all these p's and q's with real data!

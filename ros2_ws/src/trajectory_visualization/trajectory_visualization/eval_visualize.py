@@ -149,7 +149,7 @@ class MinimalPublisher(Node):
 
         self.time += 1.0 / self.frame_rate
         self.index += 1
-        if self.index >= 2000:
+        if self.index >= len(self.ref_pos):
             self.index = 0
 
 
