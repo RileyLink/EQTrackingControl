@@ -1,4 +1,4 @@
-"""Check the paper's weak projection on the original quadrotor environments."""
+"""Check weak invariance and consistent actual-body quadrotor tracking errors."""
 
 import unittest
 
@@ -34,7 +34,7 @@ def example_state(state_type=SE2xRQuadState):
 
 
 class OriginalQuadrotorWeakSymmetryTests(unittest.TestCase):
-    def test_weak_observation_matches_paper_group_quotient(self):
+    def test_weak_observation_matches_group_quotient_coordinates(self):
         state = example_state()
         # The paper's extended pose has world velocity R nu in column 3.
         def extended_pose(rotation, position, velocity):
@@ -46,13 +46,38 @@ class OriginalQuadrotorWeakSymmetryTests(unittest.TestCase):
 
         actual = extended_pose(state.rotm, state.pos, state.vel)
         desired = extended_pose(state.ref_rotm, state.ref_pos, state.ref_vel)
-        error = np.linalg.solve(desired, actual)
-        angular_error = state.omega - error[:3, :3].T @ state.ref_omega
+        error = np.linalg.solve(actual, desired)
+        angular_error = state.omega - error[:3, :3] @ state.ref_omega
         expected = np.concatenate([
-            state.omega, angular_error, error[:3, :3].ravel(),
+            state.omega, angular_error, error[:3, :3].T.ravel(),
             error[:3, 4], error[:3, 3], state.ref_action,
         ])
         np.testing.assert_allclose(weak_se23_observation(state), expected, atol=2e-7)
+
+    def test_weak_linear_errors_match_strong_frame_and_sign(self):
+        state = example_state()
+        for env_type in ENVIRONMENTS:
+            strong = env_type(equivariant=3)._get_obs(state)
+            weak = env_type(equivariant=2)._get_obs(state)
+            np.testing.assert_array_equal(weak[15:18], strong[:3])
+            # Strong stores desired body velocity before actual body velocity.
+            np.testing.assert_allclose(weak[18:21], strong[3:6] - strong[6:9], atol=1e-7)
+
+    def test_position_error_derivative_uses_matching_velocity_error(self):
+        state = example_state()
+        wx, wy, wz = state.omega
+        omega_hat = jnp.array([[0., -wz, wy], [wz, 0., -wx], [-wy, wx, 0.]])
+        def position_feature(rotation, position, desired_position):
+            changed = state.replace(rotm=rotation, pos=position, ref_pos=desired_position)
+            return weak_se23_observation(changed)[15:18]
+        _, derivative = jax.jvp(
+            position_feature, (state.rotm, state.pos, state.ref_pos),
+            (state.rotm @ omega_hat, state.vel, state.ref_vel),
+        )
+        weak = weak_se23_observation(state)
+        np.testing.assert_allclose(
+            derivative, weak[18:21] - jnp.cross(state.omega, weak[15:18]), atol=2e-7,
+        )
 
     def test_modes_preserve_original_full_and_strong_features(self):
         state = example_state()

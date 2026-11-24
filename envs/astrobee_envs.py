@@ -31,7 +31,7 @@ def _validate_reduced_body_wrench_mode(env):
 
 def _body_wrench_observation(state, *, velocity_error, include_reference_wrench):
     position = state.rotm.T @ (state.ref_pos - state.pos)
-    velocity = (state.rotm.T @ (state.vel - state.ref_vel) if velocity_error else
+    velocity = (state.rotm.T @ (state.ref_vel - state.vel) if velocity_error else
                 jnp.hstack([state.rotm.T @ state.vel, state.rotm.T @ state.ref_vel]))
     features = [position, velocity, (state.rotm.T @ state.ref_rotm).ravel(),
                 state.omega, state.ref_omega]
@@ -48,12 +48,12 @@ def strong_se3_observation(state, *, include_reference_wrench=True):
 
 
 def weak_se23_observation(state, *, include_reference_wrench=True):
-    """Replace the two strong-mode velocities by R.T(v-v_d).
+    """Replace the two strong-mode velocities by R.T(v_d-v).
 
-    Position and attitude use the actual-body convention in X^{-1} X_d.
-    The velocity error is the negative of that extended pose's velocity
-    column. Both body angular rates remain as context. The position-only
-    task omits the reference wrench, which is absent from its state.
+    Position and velocity errors are the corresponding columns of X^{-1} X_d:
+    desired-minus-actual in the actual body. Both body angular rates remain
+    as context. The position-only task omits the reference wrench, which is
+    absent from its state.
     """
     return _body_wrench_observation(
         state, velocity_error=True, include_reference_wrench=include_reference_wrench,

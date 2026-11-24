@@ -34,6 +34,8 @@ Check out `codex/quadrotor-weak-symmetry` before using the new quadrotor modes. 
 
 The released mode `1` retains world velocities and `R e3`; mode `3` expresses the velocities and world vertical in body coordinates to obtain yaw-invariant observations. Compare modes `2` and `3` with all other training options matched. The quadrotor weak reduction is selected by `--equivariant 2`; `--symmetry_type` does not select it.
 
+Modes `2` and `3` use the same position error `R.T @ (p_d - p)`. Weak uses `R.T @ (v_d - v)` in place of the two separate velocities, matching the position error's desired-minus-actual sign and actual body frame. The weak attitude and angular-rate features retain their existing definitions.
+
 Start a weak-invariant policy from scratch:
 
 ```bash
@@ -82,13 +84,13 @@ For the tracking environments, the new observations are:
 | Feature | Strong mode `6` | Weak mode `2` |
 | --- | --- | --- |
 | Position | `R.T @ (p_d - p)` | Same |
-| Velocity | `R.T @ v`, `R.T @ v_d` | `R.T @ (v - v_d)` |
+| Velocity | `R.T @ v`, `R.T @ v_d` | `R.T @ (v_d - v)` |
 | Attitude | `vec(R.T @ R_d)` | Same |
 | Angular context | `omega`, `omega_d` | Same |
 | Reference wrench | Stored `F_d`, `tau_d` | Same |
 | Input scalars | 30 | 27 |
 
-Weak replaces the two velocities with their error; it does not append an error while retaining the separate velocities. The actual-body pose convention and angular-rate context differ from the quadrotor weak vector's ordering, but still give SE_2(3)-invariant tracking coordinates. No thrust derivatives are added.
+Weak replaces the two velocities with their error; it does not append an error while retaining the separate velocities. Both robots use desired-minus-actual position and velocity errors in the actual body frame. Their existing attitude and angular-rate features retain their respective conventions. No thrust derivatives are added.
 
 Both modes produce the original six direct force/torque commands, clipped to `[-1, 1]`. Strong uses mode `6` because the legacy modes `3` and `4` contain reference-action offsets; selecting the new modes introduces no such offset. The original dynamics, reward, reset distribution, reference generators, and PPO update are unchanged. The symmetry checks concern the observation maps and equality of the original task under identical state/action inputs.
 
@@ -108,6 +110,8 @@ By default, a new directory will be created at `./checkpoints/{exp-name}` and th
 ## Evaluations (`eval_policy.py`)
 
 After training, evaluate the saved checkpoint from the repository root. The evaluator loads `config.txt` next to `model_final`, including the observation mode and network dimensions. Use the same environment name as the training run.
+
+Weak-mode `2` checkpoints trained before the position/velocity convention change require their original encoder or retraining. Their input counts are unchanged, so the saved configuration alone does not detect this mismatch.
 
 Example:
 ```bash

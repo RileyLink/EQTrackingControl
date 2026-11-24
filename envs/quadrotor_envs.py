@@ -1,8 +1,9 @@
 """Original rotor-command environments with selectable observation reductions.
 
 ``equivariant=0`` keeps the full observation; ``1`` keeps the released
-strong-symmetry branch unchanged; ``2`` uses the weak SE_2(3) projection from
-Section IV-A of "Reduction of Tracking Control Problems under Weak Symmetry".
+strong-symmetry branch unchanged; ``2`` uses coordinates equivalent to the
+weak SE_2(3) projection in Section IV-A of "Reduction of Tracking Control
+Problems under Weak Symmetry".
 ``3`` corrects the released strong observation to be yaw/translation invariant.
 The selection changes observations and their declared size only.
 
@@ -43,18 +44,18 @@ def strong_so2_observation(state):
 
 
 def weak_se23_observation(state):
-    """Return [omega, E_omega, vec(E_R), E_p, E_R E_nu, u_d].
+    """Return [omega, E_omega, vec(E_R), e_p, e_v, u_d].
 
-    The paper uses body velocities nu = R.T @ v, whereas these environments
-    store world velocities v. Thus its projected velocity E_R E_nu is
-    R_d.T @ (v - v_d). The actual angular velocity is retained exactly as in
-    the paper's projection, and u_d is the existing reference rotor command.
+    Both linear errors use desired-minus-actual in the actual body:
+    e_p = R.T @ (p_d - p), e_v = R.T @ (v_d - v). This matches the strong
+    position convention. The relative attitude E_R = R_d.T @ R and angular
+    context retain their existing definitions; u_d is the reference rotor command.
     No derivatives, input scaling, or changes to rotor actions are introduced.
     """
     rotation_error = state.ref_rotm.T @ state.rotm
     angular_error = state.omega - rotation_error.T @ state.ref_omega
-    position_error = state.ref_rotm.T @ (state.pos - state.ref_pos)
-    velocity_error = state.ref_rotm.T @ (state.vel - state.ref_vel)
+    position_error = state.rotm.T @ (state.ref_pos - state.pos)
+    velocity_error = state.rotm.T @ (state.ref_vel - state.vel)
     return jnp.hstack([state.omega, angular_error, rotation_error.ravel(),
                        position_error, velocity_error, state.ref_action])
 

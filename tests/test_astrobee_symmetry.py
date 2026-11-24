@@ -67,7 +67,7 @@ class AstrobeeSymmetryTests(unittest.TestCase):
                 actual = extended_pose(state.rotm, state.pos, state.vel)
                 desired = extended_pose(state.ref_rotm, state.ref_pos, state.ref_vel)
                 error = np.linalg.solve(actual, desired)
-                parts = [error[:3, 4], -error[:3, 3], error[:3, :3].ravel(),
+                parts = [error[:3, 4], error[:3, 3], error[:3, :3].ravel(),
                          state.omega, state.ref_omega]
                 include_wrench = state_type is not SE3FAQuadState
                 if include_wrench:
@@ -84,7 +84,25 @@ class AstrobeeSymmetryTests(unittest.TestCase):
             weak = env_type(equivariant=2, symmetry_type=2)._get_obs(state)
             np.testing.assert_array_equal(strong[:3], weak[:3])
             np.testing.assert_array_equal(strong[9:], weak[6:])
-            np.testing.assert_allclose(weak[3:6], strong[3:6] - strong[6:9], atol=1e-7)
+            np.testing.assert_allclose(weak[3:6], strong[6:9] - strong[3:6], atol=1e-7)
+
+    def test_position_error_derivative_uses_matching_velocity_error(self):
+        for env_type, state_type, _ in ENVIRONMENTS:
+            state = example_state(state_type)
+            env = env_type(equivariant=2, symmetry_type=2)
+            wx, wy, wz = state.omega
+            omega_hat = jnp.array([[0., -wz, wy], [wz, 0., -wx], [-wy, wx, 0.]])
+            def position_feature(rotation, position, desired_position):
+                changed = state.replace(rotm=rotation, pos=position, ref_pos=desired_position)
+                return env._get_obs(changed)[:3]
+            _, derivative = jax.jvp(
+                position_feature, (state.rotm, state.pos, state.ref_pos),
+                (state.rotm @ omega_hat, state.vel, state.ref_vel),
+            )
+            weak = env._get_obs(state)
+            np.testing.assert_allclose(
+                derivative, weak[3:6] - jnp.cross(state.omega, weak[:3]), atol=2e-7,
+            )
 
     def test_original_modes_are_preserved(self):
         for env_type, state_type, _ in ENVIRONMENTS:

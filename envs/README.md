@@ -55,7 +55,8 @@ New modes `2` and `6` require `symmetry_type=2`, the body-force/direct-product s
 The common features in the new modes are `R.T @ (p_d - p)`,
 `vec(R.T @ R_d)`, `omega`, and `omega_d`. Tracking tasks append the stored
 reference force and torque. Strong supplies `R.T @ v` and `R.T @ v_d`
-separately; weak substitutes `R.T @ (v - v_d)`. The other features have
+separately; weak substitutes `R.T @ (v_d - v)`. Both linear errors use
+desired minus actual in the actual body frame. The other features have
 identical values in both modes. Neither mode changes action decoding,
 dynamics, reward, reset distribution, or reference generation. The position
 task omits the reference-wrench channels because they are absent from its
@@ -78,12 +79,14 @@ On `codex/quadrotor-weak-symmetry`, quadrotor observations are selected with:
 | `2` | Weak SE_2(3) tracking errors and retained angular/reference context | 25 |
 | `3` | Corrected strong yaw/translation observation | 31 |
 
-Mode `2` uses `[omega, E_omega, vec(E_R), E_p, E_R E_nu, u_d]`, where
+Mode `2` uses `[omega, E_omega, vec(E_R), e_p, e_v, u_d]`, where
 `E_R = R_d.T @ R`, `E_omega = omega - E_R.T @ omega_d`,
-`E_p = R_d.T @ (p - p_d)`, and `E_R E_nu = R_d.T @ (v - v_d)`.
-The simulator stores world-frame velocity `v`; the last expression converts
-its relative velocity to the desired body frame. Actual angular velocity and
-the four desired rotor commands `u_d` are retained.
+`e_p = R.T @ (p_d - p)`, and `e_v = R.T @ (v_d - v)`.
+Both linear errors use desired minus actual in the actual body frame, so
+the position error matches mode `3` and its derivative is
+`e_p_dot = e_v - cross(omega, e_p)`. The weak attitude and angular-rate
+definitions, actual angular velocity, and four desired rotor commands `u_d`
+are retained.
 
 Mode `3` keeps the two velocities separately in the actual body frame and
 includes `R.T @ e3`. Mode `1` retains the released world velocities and

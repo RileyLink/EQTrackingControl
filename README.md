@@ -39,8 +39,8 @@ This table describes `quadrotor_random_walk` and `quadrotor_random_lissajous`. T
 
 | Quantity | Full: `0` | Original reduced: `1` | Corrected strong: `3` | Weak: `2` |
 | --- | --- | --- | --- | --- |
-| Position | $p, p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R_d^\top(p-p_d)$ |
-| Velocity | $v, v_d$ | $v_d, v$ | $R^\top v_d, R^\top v$ | $R_d^\top(v-v_d)$ |
+| Position | $p, p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ |
+| Velocity | $v, v_d$ | $v_d, v$ | $R^\top v_d, R^\top v$ | $R^\top(v_d-v)$ |
 | Attitude | $\mathrm{vec}(R), \mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R_d^\top R)$ |
 | Angular velocity | $\omega, \omega_d$ | $\omega_d, \omega$ | $\omega_d, \omega$ | $\omega, E_\omega$ |
 | Reference commands | $u_d$, four scalars | Same | Same | Same |
@@ -48,6 +48,8 @@ This table describes `quadrotor_random_walk` and `quadrotor_random_lissajous`. T
 | **Total inputs** | **40** | **31** | **31** | **25** |
 
 Here $E_\omega=\omega-R^\top R_d\omega_d$, $u_d$ contains the four reference rotor commands, and $e_3=(0,0,1)^\top$ is world vertical. Counts are scalar network inputs, including the nine entries of each supplied rotation matrix.
+
+Corrected strong and weak use the same position error $e_p=R^\top(p_d-p)$. Weak uses the matching velocity error $e_v=R^\top(v_d-v)$: both are desired minus actual in the actual body frame. Their kinematic relation is $\dot e_p=e_v-\omega\times e_p$. The weak attitude and angular-rate features retain their existing definitions.
 
 For `quadrotor_position`, the original mode `1` uses $R_d^\top(p_d-p)$ and $\mathrm{vec}(R_d^\top R)$ for its position and attitude entries instead. Its other entries and all four input counts are as above; modes `0`, `2`, and `3` use the same encoders across the three quadrotor tasks.
 
@@ -76,14 +78,14 @@ This table describes `astrobee_random_walk` and `astrobee_random_lissajous` with
 | Quantity | Full: `0` | Original reduced: `1` | Corrected strong: `6` | Weak: `2` |
 | --- | --- | --- | --- | --- |
 | Position | $p, p_d$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ | $R^\top(p_d-p)$ |
-| Velocity | $v, v_d$ | $v, v_d$ | $R^\top v, R^\top v_d$ | $R^\top(v-v_d)$ |
+| Velocity | $v, v_d$ | $v, v_d$ | $R^\top v, R^\top v_d$ | $R^\top(v_d-v)$ |
 | Attitude | $\mathrm{vec}(R), \mathrm{vec}(R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ | $\mathrm{vec}(R^\top R_d)$ |
 | Angular velocity | $\omega, \omega_d$ | $\omega, \omega_d$ | $\omega, \omega_d$ | $\omega, \omega_d$ |
 | Reference commands | $F_d, \tau_d$, six scalars | Same | Same | Same |
 | Separate vertical-direction input | None | None | None | None |
 | **Total inputs** | **42** | **30** | **30** | **27** |
 
-The reference force $F_d$ and torque $\tau_d$ each have three components and are supplied as stored by the reference generator. Unlike the quadrotor weak encoder, Astrobee's weak encoder keeps the same pose and angular-rate features as its corrected strong encoder; only the velocity block is replaced. No separate vertical/gravity-direction feature is supplied in any Astrobee mode.
+The reference force $F_d$ and torque $\tau_d$ each have three components and are supplied as stored by the reference generator. Position and velocity errors use the same actual-body, desired-minus-actual convention as the quadrotor. Astrobee's weak encoder keeps the same pose and angular-rate features as its corrected strong encoder; only the velocity block is replaced. No separate vertical/gravity-direction feature is supplied in any Astrobee mode.
 
 For `astrobee_position`, the full, corrected strong, and weak columns omit the six reference-command scalars, giving **36**, **24**, and **21** inputs. Its original mode `1` instead supplies $[R_d^\top(p-p_d), v-v_d, \mathrm{vec}(R^\top R_d), \omega-\omega_d]$, giving **18** inputs.
 
@@ -107,6 +109,8 @@ The paired commands share their six direct force/torque outputs, dynamics, rewar
 Pretrained models are provided within the `checkpoints` directory, for all systems. These models match the performance reported in the paper, and the individual hyperparameters used for each experiment are contained wihtin the `config.txt` file of the individual experiments. 
 
 These are the upstream checkpoints. Train a new weak policy using the appropriate command above; changing an evaluation flag does not change a checkpoint's input dimension.
+
+Earlier weak-mode `2` checkpoints used different position/velocity conventions. They require their original encoder or retraining with the current encoder, even though the input counts have not changed. The saved configuration does not distinguish these encoder revisions.
 
 ## Citation
 If you use this repository or paper please cite the following:
