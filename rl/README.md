@@ -8,6 +8,8 @@
 
 ## Training (`train_policy.py`)
 
+For full-budget training of all eight quadrotor/Astrobee symmetry policies on a friend's GPU cluster, use [CLUSTER_HANDOFF.md](../CLUSTER_HANDOFF.md). The `python -m rl.cluster_train` runner uses the same PPO update with compact per-update logging and resumable chunks, and packages all final weights for CPU evaluation after transfer. The original commands below retain their existing behavior.
+
 Run the module from the repository root, after installing the package and its dependencies. This keeps imports and checkpoint paths consistent. List the available options with:
 
 ```bash

@@ -1,0 +1,4 @@
+# Linux NVIDIA CUDA 12 profile. Keep the tested CPU dependencies and add the
+# matching GPU plugin; do not replace this with an unpinned latest JAX install.
+-r requirements-weak-symmetry.txt
+jax[cuda12]==0.4.30

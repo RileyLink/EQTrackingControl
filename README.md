@@ -29,6 +29,8 @@ python -m pip install -r requirements_ros2.txt
 
 ## Running the code
 
+For the complete eight-policy GPU-cluster campaign and returning trained weights to someone without cluster access, follow [the cluster handoff guide](CLUSTER_HANDOFF.md). It includes matched large-network presets, a SLURM array, resumable training, compact logging, and verified checkpoint archives.
+
 Run these commands from the repository root of the weak-symmetry branch or worktree. The original PPO trainer initializes a new policy for each run.
 
 In the observation tables, $p$ and $v$ are world-frame position and velocity, $R$ maps body coordinates to world coordinates, and $\omega$ is body-frame angular velocity. Subscript $d$ denotes the reference, and $\mathrm{vec}$ flattens a rotation matrix into nine scalar inputs. Features are grouped by quantity; table rows do not specify concatenation order.

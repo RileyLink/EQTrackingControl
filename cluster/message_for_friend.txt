@@ -1,0 +1,21 @@
+Could you run these eight symmetry-policy training jobs on your GPU cluster?
+
+Clone https://github.com/RileyLink/EQTrackingControl using branch
+codex/quadrotor-weak-symmetry, then follow CLUSTER_HANDOFF.md in the repository.
+It has the Python/CUDA environment setup, a short eight-job smoke test, and
+the SLURM array command for the full runs. Your site's GPU partition/account
+options may need to be added to the sbatch command.
+
+The eight jobs are full, original strong, corrected strong, and weak modes
+for quadrotor and Astrobee. Each trains from scratch with 6 x 128 hidden units.
+Budgets are 1 billion quadrotor steps and 400 million Astrobee steps per policy.
+The runner checkpoints and automatically resumes interrupted jobs.
+
+After all eight are complete, run the guide's package command and send me BOTH
+symmetry-policies-seed0.tar.gz and symmetry-policies-seed0.tar.gz.sha256 through
+a download link I can access. It collects the complete learned weights,
+configurations, provenance, and training curves automatically. Please keep the
+originals until I verify the download.
+
+A pull request with a short run report and download link is also welcome;
+the actual weight archive should be returned separately. Thank you!

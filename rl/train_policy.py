@@ -27,8 +27,30 @@ class Transition(NamedTuple):
     obs: jnp.ndarray
     info: jnp.ndarray
 
+
+def summarize_training_metrics(info):
+    """Keep one scalar per PPO update instead of every environment-step log.
+
+    This runs after the PPO update and does not enter the policy loss. The
+    original held-return average is retained alongside completed-episode stats.
+    """
+    ended = info["returned_episode"]
+    count = jnp.sum(ended)
+    denominator = jnp.maximum(count, 1)
+    lengths = info["returned_episode_lengths"]
+    length_mean = jnp.sum(jnp.where(ended, lengths, 0)) / denominator
+    length_variance = jnp.sum(jnp.where(ended, (lengths - length_mean) ** 2, 0)) / denominator
+    return {
+        "return_mean": jnp.mean(info["returned_episode_returns"]),
+        "completed_return_mean": jnp.sum(jnp.where(ended, info["returned_episode_returns"], 0)) / denominator,
+        "length_mean": length_mean,
+        "length_std": jnp.sqrt(length_variance),
+        "episode_count": count,
+    }
+
+
 def make_train(config):
-    config["NUM_UPDATES"] = (
+    config["NUM_UPDATES"] = int(
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
     config["MINIBATCH_SIZE"] = (
@@ -68,7 +90,7 @@ def make_train(config):
             
         return config["LR"] * frac
     
-    def train(rng):
+    def train(rng, starting_state=None):
         # Initialize network
         network = ActorCritic(env.action_space().shape[0], activation=config["ACTIVATION"], num_layers=config["NUM_LAYERS"], num_nodes=config["NUM_NODES"], out_activation=config["OUT_ACTIVATION"])
 
@@ -194,6 +216,8 @@ def make_train(config):
             update_state, losses = jax.lax.scan(_update_epoch, update_state, None, length=config["UPDATE_EPOCHS"])
             train_state = update_state[0]
             metric = traj_batch.info
+            if config.get("COMPACT_METRICS", False):
+                metric = summarize_training_metrics(metric)
             rng = update_state[-1]
 
             # Find the timestep within metric where it mod config['SAVE_FREQUENCY'] is zero
@@ -223,7 +247,12 @@ def make_train(config):
         
         rng, _rng = jax.random.split(rng)
         runner_state = (train_state, env_states, obs, iteration, _rng)
-        runner_state, metrics = jax.lax.scan(_update_step, runner_state, None, length=config["NUM_UPDATES"])
+        if starting_state is not None:
+            runner_state = starting_state
+        if config.get("INITIALIZE_ONLY", False):
+            return {"runner_state": runner_state, "metrics": {}}
+        updates = config.get("UPDATES_PER_CALL", config["NUM_UPDATES"])
+        runner_state, metrics = jax.lax.scan(_update_step, runner_state, None, length=updates)
         return {"runner_state": runner_state, "metrics": metrics}
     
     return train
