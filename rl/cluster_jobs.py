@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-CAMPAIGN_VERSION = 1
+CAMPAIGN_VERSION = 2
 ENCODER_VERSION = "actual_body_desired_minus_actual_v1"
 
 
@@ -29,7 +29,7 @@ JOBS = tuple(Job(index, robot, label, mode, inputs)
 
 
 def job_config(index, seed=0, smoke=False):
-    """Use the standard PPO/reward defaults, with a common larger network.
+    """Use the last upstream SLURM presets, with the attitude coefficient wired.
 
     Within a robot only the observation mode and experiment name differ.
     Full and smoke campaigns must use separate output directories.
@@ -40,17 +40,23 @@ def job_config(index, seed=0, smoke=False):
     config = dict(
         env_name=f"{job.robot}_random_walk", seed=seed, num_seeds=1,
         EXP_NAME=job.name(seed), EQUIVARIANT=job.mode, SYMMETRY_TYPE=2,
-        NUM_LAYERS=6, NUM_NODES=128, ACTIVATION="leaky_relu", OUT_ACTIVATION="hard_tanh",
+        NUM_LAYERS=6, NUM_NODES=128 if job.robot == "quadrotor" else 256,
+        ACTIVATION="leaky_relu", OUT_ACTIVATION="clipped_relu" if job.robot == "quadrotor" else "hard_tanh",
         TOTAL_TIMESTEPS=1_000_000_000 if job.robot == "quadrotor" else 400_000_000,
         NUM_ENVS=64 if job.robot == "quadrotor" else 32, NUM_STEPS=512,
         UPDATE_EPOCHS=5, NUM_MINIBATCHES=4, LR=3e-4, GAMMA=.995, LAMBDA=.95,
         CLIP_RANGE=.2, ENT_COEF=0., VF_COEF=.5, MAX_GRAD_NORM=.5, ANNEAL_LR=True,
-        TERMINATE_ON_ERROR=True, TERMINATION_BOUND=10., TERMINAL_REWARD=0.,
-        STATE_COV_SCALAR=.5, REF_COV_SCALAR=3., REWARD_Q_POS=.01, REWARD_Q_VEL=.01,
-        REWARD_Q_ROTM=.001, REWARD_Q_OMEGA=.0001, REWARD_R=.0001, REWARD_REACH=False,
+        TERMINATE_ON_ERROR=True, TERMINATION_BOUND=10. if job.robot == "quadrotor" else 25.,
+        TERMINAL_REWARD=-25., STATE_COV_SCALAR=.5, REF_COV_SCALAR=3.,
+        REWARD_Q_POS=.02 if job.robot == "quadrotor" else .05, REWARD_Q_VEL=.001,
+        REWARD_Q_ROTM=.6 if job.robot == "quadrotor" else 10.,
+        REWARD_Q_OMEGA=.0001 if job.robot == "quadrotor" else .05,
+        REWARD_R=.0005 if job.robot == "quadrotor" else .001, REWARD_REACH=True,
         USE_DES_ACTION_IN_REWARD=True, USE_ABS_REWARD_FN=False, REWARD_FN_TYPE=1,
         CLIP_ACTIONS=True, DEBUG=False, COMPACT_METRICS=True,
         CAMPAIGN_VERSION=CAMPAIGN_VERSION, ENCODER_VERSION=ENCODER_VERSION, SMOKE_TEST=smoke,
+        REWARD_IMPLEMENTATION="attitude_weight_wired_v2",
+        OUTPUT_IMPLEMENTATION="clipped_relu_0_1_v1" if job.robot == "quadrotor" else "flax_hard_tanh",
     )
     if smoke:
         config.update(TOTAL_TIMESTEPS=64, NUM_ENVS=2, NUM_STEPS=16,

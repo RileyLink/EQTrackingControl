@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stdout
 import io
+import os
 from pathlib import Path
 import tempfile
 import subprocess
@@ -20,11 +21,10 @@ from rl.train_policy import make_train, summarize_training_metrics
 
 class ClusterTrainingTests(unittest.TestCase):
     def setUp(self):
-        # Orbax 0.6.4's diagnostic logger can divide by a zero-duration Windows
-        # clock tick for tiny test checkpoints. Serialization remains real.
-        diagnostic = patch("orbax.checkpoint._src.handlers.base_pytree_checkpoint_handler._log_io_per_sec_metric")
-        diagnostic.start()
-        self.addCleanup(diagnostic.stop)
+        if os.name == "nt":
+            diagnostic = patch("orbax.checkpoint._src.handlers.base_pytree_checkpoint_handler._log_io_metrics")
+            diagnostic.start()
+            self.addCleanup(diagnostic.stop)
 
     def test_only_observation_and_experiment_name_differ_within_each_robot(self):
         for start in (0, 4):
@@ -33,7 +33,7 @@ class ClusterTrainingTests(unittest.TestCase):
                            if key not in ("EXP_NAME", "EQUIVARIANT")} for config in configs]
             self.assertTrue(all(config == normalized[0] for config in normalized))
             self.assertEqual(configs[0]["NUM_LAYERS"], 6)
-            self.assertEqual(configs[0]["NUM_NODES"], 128)
+            self.assertEqual(configs[0]["NUM_NODES"], 128 if start == 0 else 256)
         self.assertEqual(job_config(0)["TOTAL_TIMESTEPS"], 1_000_000_000)
         self.assertEqual(job_config(4)["TOTAL_TIMESTEPS"], 400_000_000)
 

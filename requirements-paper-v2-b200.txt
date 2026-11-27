@@ -1,0 +1,17 @@
+# Linux NVIDIA profile, Python 3.11/3.12. Blackwell-aware JAX with CUDA 12.8.
+# Native CUDA 12.8 compiler/runtime requires a suitable host driver (R570+).
+# These pins avoid pulling CUDA 12.9 ptxas onto the friend's CUDA 12.8 driver.
+-r requirements-paper-v2-cpu.txt
+jax[cuda12]==0.6.2
+nvidia-cuda-nvcc-cu12==12.8.93
+nvidia-cuda-runtime-cu12==12.8.90
+nvidia-cuda-cupti-cu12==12.8.90
+nvidia-cuda-nvrtc-cu12==12.8.93
+nvidia-nvjitlink-cu12==12.8.93
+nvidia-cublas-cu12==12.8.4.1
+nvidia-cudnn-cu12==9.8.0.87
+nvidia-cufft-cu12==11.3.3.83
+nvidia-cusolver-cu12==11.7.3.90
+nvidia-cusparse-cu12==12.5.8.93
+nvidia-nccl-cu12==2.26.5
+nvidia-nvshmem-cu12==3.2.5

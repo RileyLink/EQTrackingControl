@@ -34,11 +34,10 @@ def constant_policy(robot, mode, action):
 
 class EvalVisTests(unittest.TestCase):
     def setUp(self):
-        # Orbax 0.6.4's throughput logger can divide by a zero-duration Windows
-        # clock tick for tiny fixtures. Disable only that third-party diagnostic.
-        diagnostic = patch("orbax.checkpoint._src.handlers.base_pytree_checkpoint_handler._log_io_per_sec_metric")
-        diagnostic.start()
-        self.addCleanup(diagnostic.stop)
+        if os.name == "nt":
+            diagnostic = patch("orbax.checkpoint._src.handlers.base_pytree_checkpoint_handler._log_io_metrics")
+            diagnostic.start()
+            self.addCleanup(diagnostic.stop)
 
     def save_fixture(self, root, robot, mode):
         # Controlled, untrained weights: every observation map produces the same command.

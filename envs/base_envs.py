@@ -323,6 +323,8 @@ class SE3QuadFullyActuatedBase:
     def __init__ (self, ref_pos=None, equivariant=0, state_cov_scalar=0.5, ref_cov_scalar=3.0, dt=0.05, max_time=100.0, terminate_on_error=True, 
                   reward_q_pos = 1e-2, reward_q_vel = 1e-2, reward_r = 1e-4, termination_bound = 10., terminal_reward = 0.0, reward_reach=False,
                    use_des_action_in_reward=True, reward_q_rot=1e-3, reward_q_omega=1e-4, use_abs_reward_fn=False, symmetry_type=0, **kwargs):
+        if "reward_q_rotm" in kwargs:
+            raise TypeError("Use reward_q_rot for the attitude coefficient; reward_q_rotm would be ignored.")
         self.state_mean = jnp.array([0., 0., 0.])
         self.state_cov = jnp.eye(3) * state_cov_scalar
         self.ref_mean = jnp.array([0., 0., 0.])
@@ -562,6 +564,8 @@ class SE2xRQuadBase:
     def __init__ (self, ref_pos=None, equivariant=False, state_cov_scalar=0.5, ref_cov_scalar=3.0, dt=0.05, max_time=100.0, terminate_on_error=True, 
                   reward_q_pos = 1e-2, reward_q_vel = 1e-2, reward_r = 1e-4, termination_bound = 10., terminal_reward = 0.0, reward_reach=False,
                    use_des_action_in_reward=True, reward_q_rot=1e-3, reward_q_omega=1e-4, use_abs_reward_fn=True, **kwargs):
+        if "reward_q_rotm" in kwargs:
+            raise TypeError("Use reward_q_rot for the attitude coefficient; reward_q_rotm would be ignored.")
         self.state_mean = jnp.array([0., 0., 0.])
         self.state_cov = jnp.eye(3) * state_cov_scalar
         self.ref_mean = jnp.array([0., 0., 0.])

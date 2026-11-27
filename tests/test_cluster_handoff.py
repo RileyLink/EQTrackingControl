@@ -3,6 +3,7 @@
 from contextlib import redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import tarfile
@@ -20,9 +21,12 @@ from rl.cluster_jobs import JOBS
 
 class ClusterHandoffTests(unittest.TestCase):
     def setUp(self):
-        diagnostic = patch("orbax.checkpoint._src.handlers.base_pytree_checkpoint_handler._log_io_per_sec_metric")
-        diagnostic.start()
-        self.addCleanup(diagnostic.stop)
+        if os.name == "nt":
+            # Tiny Windows I/O can produce NaN throughput in Orbax's logger.
+            # Only its diagnostic is bypassed; all tensor serialization is real.
+            diagnostic = patch("orbax.checkpoint._src.handlers.base_pytree_checkpoint_handler._log_io_metrics")
+            diagnostic.start()
+            self.addCleanup(diagnostic.stop)
 
     def test_eight_smoke_jobs_resume_archive_receive_and_eval(self):
         with tempfile.TemporaryDirectory(prefix="cluster-handoff-") as temporary, redirect_stdout(io.StringIO()):

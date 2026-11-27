@@ -1,7 +1,7 @@
 # Eight-policy symmetry training report
 
 - Source repository: https://github.com/RileyLink/EQTrackingControl
-- Source branch: `codex/quadrotor-weak-symmetry`
+- Source branch: `codex/paper-rewards-b200`
 - Exact source commit:
 - Campaign seed: `0`
 - GPU model and count:
@@ -9,7 +9,11 @@
 - Smoke campaign: all 8 verified / details
 - Full campaign: all 8 verified / details
 - Requested budgets: quadrotor 1B steps; Astrobee 400M steps, each policy
-- Network: 6 layers, 128 units
+- Campaign: paper v2, attitude weight wired; quadrotor clipped ReLU [0,1]
+- Network: quadrotor 6 layers x 128 units; Astrobee 6 layers x 256 units
+- GPU model / driver / JAX version:
+- Compiled GPU preflight and all eight smoke jobs passed:
+- Effective reward values from run_metadata.json:
 - Training elapsed time per task:
 - Weight archive download link accessible to Riley:
 - Archive SHA-256:

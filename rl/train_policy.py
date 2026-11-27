@@ -49,6 +49,22 @@ def summarize_training_metrics(info):
     }
 
 
+def make_environment(config, **overrides):
+    """Build the task with the same effective reward in training and preflight."""
+    arguments = dict(
+        equivariant=config["EQUIVARIANT"], terminate_on_error=config["TERMINATE_ON_ERROR"],
+        reward_q_pos=config["REWARD_Q_POS"], reward_q_vel=config["REWARD_Q_VEL"],
+        reward_q_rot=config["REWARD_Q_ROTM"], reward_q_omega=config["REWARD_Q_OMEGA"],
+        reward_r=config["REWARD_R"], reward_reach=config["REWARD_REACH"],
+        termination_bound=config["TERMINATION_BOUND"], terminal_reward=config["TERMINAL_REWARD"],
+        state_cov_scalar=config["STATE_COV_SCALAR"], ref_cov_scalar=config["REF_COV_SCALAR"],
+        use_des_action_in_reward=config["USE_DES_ACTION_IN_REWARD"],
+        use_abs_reward_fn=config["USE_ABS_REWARD_FN"], symmetry_type=config["SYMMETRY_TYPE"],
+    )
+    arguments.update(overrides)
+    return registry.get_env_by_name(config["env_name"], **arguments)
+
+
 def make_train(config):
     config["NUM_UPDATES"] = int(
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
@@ -60,13 +76,7 @@ def make_train(config):
 
     # Create environment
     print("Terminate on error? : ", config["TERMINATE_ON_ERROR"])
-    env = registry.get_env_by_name(config["env_name"], equivariant=config["EQUIVARIANT"], terminate_on_error=config["TERMINATE_ON_ERROR"], 
-                                   reward_q_pos=config["REWARD_Q_POS"], reward_q_vel=config["REWARD_Q_VEL"], reward_q_rotm=config["REWARD_Q_ROTM"], 
-                                   reward_q_omega=config["REWARD_Q_OMEGA"], reward_r=config["REWARD_R"], reward_reach=config["REWARD_REACH"], 
-                                   termination_bound=config["TERMINATION_BOUND"], terminal_reward=config["TERMINAL_REWARD"], 
-                                   state_cov_scalar=config["STATE_COV_SCALAR"], ref_cov_scalar=config["REF_COV_SCALAR"], 
-                                   use_des_action_in_reward=config["USE_DES_ACTION_IN_REWARD"], use_abs_reward_fn=config["USE_ABS_REWARD_FN"], 
-                                   symmetry_type=config["SYMMETRY_TYPE"])
+    env = make_environment(config)
     #env = registry.get_env_by_name(config["env_name"], **config)
     env = LogWrapper(env)
     

@@ -16,6 +16,7 @@ plots/
 # Checkpoint directory
 checkpoints/
 .venv-cluster/
+.venv-paper-v2/
 *.egg-info/
 cluster_runs/
 cluster_artifacts/

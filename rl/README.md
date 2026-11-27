@@ -8,7 +8,7 @@
 
 ## Training (`train_policy.py`)
 
-For full-budget training of all eight quadrotor/Astrobee symmetry policies on a friend's GPU cluster, use [CLUSTER_HANDOFF.md](../CLUSTER_HANDOFF.md). The `python -m rl.cluster_train` runner uses the same PPO update with compact per-update logging and resumable chunks, and packages all final weights for CPU evaluation after transfer. The original commands below retain their existing behavior.
+For the corrected eight-policy campaign and B200 support, use [CLUSTER_HANDOFF.md](../CLUSTER_HANDOFF.md) on `codex/paper-rewards-b200`. It uses the last SLURM presets, fixes the attitude coefficient, defines quadrotor clipped ReLU in [0,1], and runs up to eight independent GPU jobs. Install the new `requirements-paper-v2-b200.txt` or CPU counterpart in a separate environment. The original generic commands below still use their own defaults; they are not the paper preset recipe.
 
 Run the module from the repository root, after installing the package and its dependencies. This keeps imports and checkpoint paths consistent. List the available options with:
 
@@ -122,7 +122,7 @@ python -m rl.eval_policy --env-name quadrotor_random_walk --load-path ./checkpoi
 
 For the strong policy, use `./checkpoints/quadrotor_strong_seed0/model_final`. If the trainer appended a numeric suffix to an existing experiment name, use that actual checkpoint folder. The evaluator reads `EQUIVARIANT` from the saved configuration, overriding its command-line observation-mode argument.
 
-The current evaluator uses a fixed 5,000-step rollout and writes `eval_data.pkl` and per-environment plots beside the checkpoint. Its `--num-timesteps` option does not currently change that fixed rollout length. The examples use the default `hard_tanh` output activation: the legacy evaluator does not restore a different `OUT_ACTIVATION` from the configuration, so evaluation of models trained with other output activations needs a separate evaluator correction.
+The legacy evaluator uses a fixed 5,000-step rollout and writes `eval_data.pkl` and per-environment plots beside the checkpoint. Its `--num-timesteps` option does not change that fixed length. V2 restores the saved `OUT_ACTIVATION`; for shared-reference comparisons and adjustable horizons, use the `rl.eval_vis` exporter below.
 
 ## ROS rollout export (`eval_vis.py`)
 
@@ -150,7 +150,7 @@ python -m rl.eval_vis --env quadrotor --reference random_walk \
 
 For Astrobee, replace `quadrotor` with `astrobee` in that command and its checkpoint paths. A checkpoint path can name the experiment directory or its `model_final` subdirectory. Repeated `--checkpoint` options select exactly those modes; omit them to request all four default folders. `--rviz-pair` selects two requested modes for playback, defaulting to the first and last requested modes. A single checkpoint can also be exported, without updating the pair files.
 
-The four trained checkpoints must exist before running the comparison. A folder containing only Orbax metadata is insufficient: the checkpoint's data files must also be present. Some bundled quadrotor configurations name `clipped_relu`, but the released `ActorCritic` calls `flax.linen.clipped_relu`, which is absent in the pinned Flax version. Those checkpoints require their original activation implementation; this exporter reports the incompatibility instead of substituting `hard_tanh`. New policies trained with the supported default `hard_tanh` do not have that issue. Earlier weak-mode checkpoints also require their original encoder or retraining after the error-convention change.
+The four trained checkpoints must exist before running the comparison. Metadata without tensor-data files is insufficient. V2 defines `clipped_relu` explicitly as min(max(z,0),1), since the released Flax symbol is unavailable; its exact historical definition could not be verified. V2 checkpoints record that choice and use the modern CPU profile for evaluation. Earlier weak-mode checkpoints also require their original encoder or retraining after the error-convention change.
 
 Evaluation uses one common initial physical state and one precomputed reference for all policies. The first requested checkpoint supplies the common environment settings, including reset covariance and termination bound; each policy supplies its own mode and network weights. Automatic error/time resets are disabled during export so a drifting policy does not restart on a different reference. Bound violations are recorded instead. The shared reference is generated with the robot's state matched to its reference state, then replayed: this also prevents the released Astrobee random-walk generator's dependence on actual angular velocity from creating a different task for each policy. Training environments and PPO are unchanged.
 

@@ -1,0 +1,17 @@
+# Modern CPU profile for tests and evaluation, Python 3.11/3.12.
+# Keep the legacy requirements-weak-symmetry.txt environment separate.
+jax==0.6.2
+jaxlib==0.6.2
+flax==0.10.6
+optax==0.2.5
+orbax-checkpoint==0.11.13
+chex==0.1.89
+distrax==0.1.5
+tensorflow-probability==0.25.0
+gymnax==0.0.8
+gym==0.26.2
+gymnasium==0.29.1
+numpy==1.26.4
+scipy==1.14.1
+matplotlib==3.9.2
+seaborn==0.13.2

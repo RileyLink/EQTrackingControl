@@ -29,7 +29,7 @@ python -m pip install -r requirements_ros2.txt
 
 ## Running the code
 
-For the complete eight-policy GPU-cluster campaign and returning trained weights to someone without cluster access, follow [the cluster handoff guide](CLUSTER_HANDOFF.md). It includes matched large-network presets, a SLURM array, resumable training, compact logging, and verified checkpoint archives.
+For the corrected eight-policy campaign with B200 support, follow [the cluster handoff guide](CLUSTER_HANDOFF.md) on `codex/paper-rewards-b200`. It restores the last SLURM presets, fixes the attitude weight, defines quadrotor clipped ReLU, and provides eight GPU jobs in parallel with resumable checkpoints and verified return archives.
 
 Run these commands from the repository root of the weak-symmetry branch or worktree. The original PPO trainer initializes a new policy for each run.
 

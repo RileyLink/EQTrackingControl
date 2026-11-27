@@ -126,11 +126,11 @@ if __name__ == "__main__":
 
     # Define the model
     if "particle" in args.env_name:
-        model = ActorCritic(action_dim=3, activation=train_config.get("ACTIVATION", "tanh"), num_layers=train_config.get("NUM_LAYERS", 3), num_nodes=train_config.get("NUM_NODES", 64))
+        model = ActorCritic(action_dim=3, activation=train_config.get("ACTIVATION", "tanh"), num_layers=train_config.get("NUM_LAYERS", 3), num_nodes=train_config.get("NUM_NODES", 64), out_activation=train_config.get("OUT_ACTIVATION", "hard_tanh"))
     elif "astrobee" in args.env_name:
-        model = ActorCritic(action_dim=6, activation=train_config.get("ACTIVATION", "tanh"), num_layers=train_config.get("NUM_LAYERS", 3), num_nodes=train_config.get("NUM_NODES", 64))
+        model = ActorCritic(action_dim=6, activation=train_config.get("ACTIVATION", "tanh"), num_layers=train_config.get("NUM_LAYERS", 3), num_nodes=train_config.get("NUM_NODES", 64), out_activation=train_config.get("OUT_ACTIVATION", "hard_tanh"))
     elif "quadrotor" in args.env_name:
-        model = ActorCritic(action_dim=4, activation=train_config.get("ACTIVATION", "tanh"), num_layers=train_config.get("NUM_LAYERS", 3), num_nodes=train_config.get("NUM_NODES", 64))
+        model = ActorCritic(action_dim=4, activation=train_config.get("ACTIVATION", "tanh"), num_layers=train_config.get("NUM_LAYERS", 3), num_nodes=train_config.get("NUM_NODES", 64), out_activation=train_config.get("OUT_ACTIVATION", "hard_tanh"))
     else:
         raise ValueError("Invalid environment name, please use particle, astrobee or quadrotor")
     #model.init(rng, jnp.zeros((1, 3)))
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
     # Create environment
     env = registry.get_env_by_name(train_config["env_name"], equivariant=train_config["EQUIVARIANT"], terminate_on_error=train_config["TERMINATE_ON_ERROR"], 
-                                   reward_q_pos=train_config["REWARD_Q_POS"], reward_q_vel=train_config["REWARD_Q_VEL"], reward_q_rotm=train_config["REWARD_Q_ROTM"], 
+                                   reward_q_pos=train_config["REWARD_Q_POS"], reward_q_vel=train_config["REWARD_Q_VEL"], reward_q_rot=train_config["REWARD_Q_ROTM"],
                                    reward_q_omega=train_config["REWARD_Q_OMEGA"], reward_r=train_config["REWARD_R"], reward_reach=train_config["REWARD_REACH"], 
                                    termination_bound=train_config["TERMINATION_BOUND"], terminal_reward=train_config["TERMINAL_REWARD"], 
                                    state_cov_scalar=train_config["STATE_COV_SCALAR"], ref_cov_scalar=train_config["REF_COV_SCALAR"], 

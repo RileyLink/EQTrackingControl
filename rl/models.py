@@ -7,6 +7,15 @@ import distrax
 from typing import Sequence
 
 
+def clipped_relu(x):
+    """Nonnegative actor mean capped at the rotor-command upper bound of one.
+
+    The released script names clipped_relu but its Flax symbol is unavailable.
+    Define the 0..1 behavior here instead of substituting a signed activation.
+    """
+    return jnp.minimum(nn.relu(x), 1.0)
+
+
 class ActorCritic(nn.Module):
     action_dim: Sequence[int]
     #activation: str = "tanh"
@@ -33,7 +42,7 @@ class ActorCritic(nn.Module):
         elif self.out_activation == "relu":
             out_activation = nn.relu
         elif self.out_activation == "clipped_relu":
-            out_activation = nn.clipped_relu
+            out_activation = clipped_relu
         else:
             raise ValueError("Invalid output activation function.")
     

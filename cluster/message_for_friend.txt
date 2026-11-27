@@ -1,21 +1,35 @@
-Could you run these eight symmetry-policy training jobs on your GPU cluster?
+Please run the corrected v2 campaign, not the old defaults campaign.
 
-Clone https://github.com/RileyLink/EQTrackingControl using branch
-codex/quadrotor-weak-symmetry, then follow CLUSTER_HANDOFF.md in the repository.
-It has the Python/CUDA environment setup, a short eight-job smoke test, and
-the SLURM array command for the full runs. Your site's GPU partition/account
-options may need to be added to the sbatch command.
+1. Clone a fresh checkout:
+   git clone --branch codex/paper-rewards-b200 https://github.com/RileyLink/EQTrackingControl.git EQTrackingControl-paper-v2
+   cd EQTrackingControl-paper-v2
+   Or from your existing v1 clone, fetch the ZIP's incremental update bundle:
+   git fetch /path/to/paper-v2-update.bundle codex/paper-rewards-b200:codex/paper-rewards-b200
+   git worktree add ../EQTrackingControl-paper-v2 codex/paper-rewards-b200
+   cd ../EQTrackingControl-paper-v2
 
-The eight jobs are full, original strong, corrected strong, and weak modes
-for quadrotor and Astrobee. Each trains from scratch with 6 x 128 hidden units.
-Budgets are 1 billion quadrotor steps and 400 million Astrobee steps per policy.
-The runner checkpoints and automatically resumes interrupted jobs.
+2. Use Python 3.11 or 3.12 and a NEW environment:
+   bash cluster/setup_paper_v2.sh
+   For Python 3.12: SYMMETRY_PYTHON=python3.12 bash cluster/setup_paper_v2.sh
+   This installs JAX 0.6.2 with pinned CUDA 12.8 libraries, not JAX 0.4.30.
+   The B200 host needs a compatible driver (R570+). Return nvidia-smi output if preflight fails.
 
-After all eight are complete, run the guide's package command and send me BOTH
-symmetry-policies-seed0.tar.gz and symmetry-policies-seed0.tar.gz.sha256 through
-a download link I can access. It collects the complete learned weights,
-configurations, provenance, and training curves automatically. Please keep the
-originals until I verify the download.
+3. Pick the cluster's B200 partition/account. Setup creates slurm_outs before submission.
+   Submit the tiny eight-job smoke array first:
+   sbatch --partition=YOUR_B200_PARTITION --export=ALL,SYMMETRY_RUN_KIND=smoke cluster/train_symmetry_array.sbatch
+   Check all eight completed:
+   .venv-paper-v2/bin/python -m rl.cluster_train status --output-root cluster_runs/paper_v2_smoke_seed0 --verify
 
-A pull request with a short run report and download link is also welcome;
-the actual weight archive should be returned separately. Thank you!
+4. Submit the full array:
+   sbatch --partition=YOUR_B200_PARTITION --export=ALL,SYMMETRY_RUN_KIND=full cluster/train_symmetry_array.sbatch
+   The array is 0-7%8: eight independent policies, each allocated one GPU.
+   Alternatively request one eight-GPU node with cluster/train_eight_on_node.sbatch; do not submit both.
+   If interrupted, resubmit the same command to resume. Never point v2 at the old run directories.
+
+5. Return final weights AND logs:
+   .venv-paper-v2/bin/python -m rl.cluster_train status --output-root cluster_runs/paper_v2_full_seed0 --verify
+   .venv-paper-v2/bin/python -m rl.cluster_train package --output-root cluster_runs/paper_v2_full_seed0 --archive cluster_artifacts/paper-v2-seed0.tar.gz
+   Return paper-v2-seed0.tar.gz, its .sha256 sidecar, and slurm_outs from smoke/full runs.
+   Retain originals until Riley verifies import. A GitHub PR with plots alone does not transfer model weights.
+
+Full instructions, reward table, runtime changes, and evaluation commands: CLUSTER_HANDOFF.md.

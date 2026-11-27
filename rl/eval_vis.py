@@ -102,6 +102,8 @@ def environment_kwargs(config):
              "REWARD_REACH", "USE_DES_ACTION_IN_REWARD", "USE_ABS_REWARD_FN", "REWARD_FN_TYPE",
              "CLIP_ACTIONS", "SYMMETRY_TYPE", "DT")
     kwargs = {name.lower(): config[name] for name in names if name in config}
+    if "reward_q_rotm" in kwargs:
+        kwargs["reward_q_rot"] = kwargs.pop("reward_q_rotm")
     # Continuous, equal-horizon evaluation: record bound violations instead of resetting.
     kwargs.update(terminate_on_error=False, max_time=float("inf"))
     return kwargs

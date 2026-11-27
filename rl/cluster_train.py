@@ -20,7 +20,8 @@ from rl.cluster_jobs import JOBS, job_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VERSIONS = ("jax", "jaxlib", "jax-cuda12-plugin", "jax-cuda12-pjrt", "flax", "optax",
-            "orbax-checkpoint", "numpy", "scipy", "gymnax", "distrax", "chex")
+            "orbax-checkpoint", "numpy", "scipy", "gymnax", "distrax", "chex",
+            "nvidia-cuda-nvcc-cu12", "nvidia-cuda-runtime-cu12", "nvidia-cudnn-cu12")
 
 
 def atomic_json(path, data):
@@ -56,13 +57,8 @@ def source_info():
 
 
 def runtime_info(require_gpu=True):
-    import jax
-    if jax.__version__ != "0.4.30":
-        raise ValueError("Use the pinned JAX 0.4.30 environment; see CLUSTER_HANDOFF.md.")
-    devices = jax.devices()
-    if require_gpu and not any(device.platform == "gpu" for device in devices):
-        raise ValueError("JAX cannot see a GPU. Run inside a GPU allocation with the CUDA profile; "
-                         "use --allow-cpu only for local checks.")
+    from rl.preflight import check_device
+    device_check = check_device(require_gpu)
     dependencies = {}
     for name in VERSIONS:
         try:
@@ -70,7 +66,7 @@ def runtime_info(require_gpu=True):
         except importlib.metadata.PackageNotFoundError:
             dependencies[name] = None
     return dict(python=sys.version, platform=platform.platform(), dependencies=dependencies,
-                devices=[str(device) for device in devices],
+                devices=device_check["devices"], device_check=device_check,
                 slurm={key: os.environ[key] for key in ("SLURM_JOB_ID", "SLURM_ARRAY_JOB_ID",
                        "SLURM_ARRAY_TASK_ID", "SLURM_JOB_NODELIST") if key in os.environ})
 
@@ -216,6 +212,8 @@ def train_job(args):
     if args.allow_dirty and not args.smoke:
         raise ValueError("--allow-dirty is restricted to smoke tests.")
     environment = runtime_info(require_gpu=not args.allow_cpu)
+    from rl.preflight import check_rewards
+    effective_reward = check_rewards(config)
     run_dir = args.output_root.expanduser().resolve() / job.name(args.seed)
     run_dir.mkdir(parents=True, exist_ok=True)
     with training_lock(run_dir / ".training.lock"):
@@ -236,6 +234,7 @@ def train_job(args):
             if (run_dir / "progress.json").exists() or (run_dir / "model_final").exists() or (run_dir / "resume").exists():
                 raise ValueError("Existing checkpoint data has lost its source metadata.")
             metadata = dict(created_at=now(), task=job.index, source=source, runtime=environment,
+                            effective_reward=effective_reward,
                             configuration_sha256=fingerprint, observation_inputs=job.inputs,
                             training_style="from_scratch_then_exact_state_resume",
                             metrics="five scalars per PPO update; no policy-loss changes")
@@ -332,6 +331,7 @@ def train_job(args):
 
 
 def plan(args):
+    print("Campaign v2: original SLURM presets, attitude weight wired, separate fresh run roots.")
     print("Task  Robot       Label              Mode  Inputs  Layers  Units  Requested steps")
     for job in JOBS:
         config = job_config(job.index, args.seed, args.smoke)
@@ -384,7 +384,13 @@ def main(argv=None):
         plan(args)
         return 0
     if args.command == "check":
-        print(json.dumps(runtime_info(not args.allow_cpu), indent=2))
+        from contextlib import redirect_stdout
+        import io
+        from rl.preflight import check_rewards
+        result = runtime_info(not args.allow_cpu)
+        with redirect_stdout(io.StringIO()):
+            result["task_checks"] = {job.name(0): check_rewards(job_config(job.index)) for job in JOBS}
+        print(json.dumps(result, indent=2))
         return 0
     if args.command == "train":
         return train_job(args)
